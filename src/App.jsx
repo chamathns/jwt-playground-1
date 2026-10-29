@@ -204,6 +204,10 @@ export default function App() {
     else actions.signClear();
     setNotice(mode === 'verify' ? 'Token cleared.' : 'Header and payload cleared.');
   };
+  const clearAll = () => {
+    actions.clearAll();
+    setNotice('Cleared all tokens and keys in both modes.');
+  };
   const example = () => {
     if (mode === 'verify') actions.verifyExample();
     else actions.signExample();
@@ -213,6 +217,15 @@ export default function App() {
         : 'Example loaded with synthetic data and a new random key.',
     );
   };
+  const hasAnything = [
+    verify.input,
+    verify.material.secret,
+    verify.material.pem,
+    sign.headerText,
+    sign.payloadText,
+    sign.material.secret,
+    sign.material.pem,
+  ].some(Boolean);
   const canClear = mode === 'verify' ? Boolean(verify.input) : Boolean(sign.headerText || sign.payloadText);
 
   return (
@@ -232,6 +245,14 @@ export default function App() {
           <div className="actions">
             <button type="button" onClick={example}>Load example</button>
             <button type="button" onClick={clear} disabled={!canClear}>Clear</button>
+            <button
+              type="button"
+              onClick={clearAll}
+              disabled={!hasAnything}
+              title="Remove the tokens, JSON and keys in both modes"
+            >
+              Clear all
+            </button>
             {mode === 'verify' ? (
               <CopyButton text={verify.input} label="Copy token" disabled={!verify.input} primary />
             ) : (

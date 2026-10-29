@@ -69,6 +69,7 @@ export default function useJwt(engine = { verify: verifyToken, sign: signToken }
   const actions = useMemo(
     () => ({
       setMode: (mode) => dispatch({ type: 'mode', mode }),
+      clearAll: () => dispatch({ type: 'clearAll' }),
       verifyInput: (value) => dispatch({ type: 'verify/input', value }),
       verifyMaterial: (patch) => dispatch({ type: 'verify/material', patch }),
       verifyClear: () => dispatch({ type: 'verify/clear' }),

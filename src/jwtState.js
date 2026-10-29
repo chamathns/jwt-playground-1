@@ -48,6 +48,13 @@ export function reducer(state, action) {
     case 'mode':
       return { ...state, mode: action.mode };
 
+    // Wipes both drafts including every key. Each draft's revision is bumped, so in-flight checks are discarded.
+    case 'clearAll': {
+      const verify = editVerify(state, { input: '', material: emptyMaterial() }).verify;
+      const sign = editSign(state, { headerText: '', payloadText: '', material: emptyMaterial() }).sign;
+      return { ...state, verify, sign };
+    }
+
     case 'verify/input':
       return editVerify(state, { input: action.value });
     case 'verify/material':

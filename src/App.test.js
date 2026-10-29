@@ -412,3 +412,57 @@ describe('key safety', () => {
     expect(screen.getByText(/This key is 5 bytes/)).toBeInTheDocument();
   });
 });
+
+describe('clearing keys', () => {
+  const PEM_TEXT = '-----BEGIN PRIVATE KEY-----\nCANARYPEMBODY\n-----END PRIVATE KEY-----';
+
+  test('Clear all removes tokens and keys from both modes and from the page', async () => {
+    render(<App />);
+    await openSignWithKey('canary-signing-secret-0123456789abcdef');
+    fireEvent.change(screen.getByLabelText('Algorithm'), { target: { value: 'RS256' } });
+    fireEvent.change(await screen.findByLabelText('Private key (PEM)'), { target: { value: PEM_TEXT } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Verify a token' }));
+    await verified();
+    const exampleToken = token().value;
+    expect(document.body.innerHTML).toContain('your-256-bit-secret');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    await waitFor(() => expect(verdict()).toHaveTextContent('No token'));
+    expect(token().value).toBe('');
+    expect(screen.getByText('Cleared all tokens and keys in both modes.')).toBeInTheDocument();
+    // Pasting the same token back finds no key: it is unverified, not verified with a remembered secret.
+    fireEvent.change(token(), { target: { value: exampleToken } });
+    await waitFor(() => expect(verdict()).toHaveTextContent('Unverified'));
+    expect(screen.getByLabelText('Secret').value).toBe('');
+    fireEvent.change(token(), { target: { value: '' } });
+    await waitFor(() => expect(verdict()).toHaveTextContent('No token'));
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Sign a token' }));
+    expect(screen.getByLabelText('Header').value).toBe('');
+    expect(screen.getByLabelText('Payload').value).toBe('');
+    // The algorithm select is empty now, so switch it back to read the key field.
+    fireEvent.change(screen.getByLabelText('Header'), { target: { value: '{"alg":"RS256"}' } });
+    expect(await screen.findByLabelText('Private key (PEM)')).toHaveValue('');
+    fireEvent.change(screen.getByLabelText('Header'), { target: { value: '{"alg":"HS256"}' } });
+    expect(await screen.findByLabelText('Secret')).toHaveValue('');
+    const html = document.body.innerHTML;
+    for (const gone of ['canary-signing-secret', 'CANARYPEMBODY', 'your-256-bit-secret']) {
+      expect(html).not.toContain(gone);
+    }
+    await act(async () => {}); // let the draft's background check finish inside act()
+  });
+
+  test('plain Clear keeps the key, so it is not the way to remove one', async () => {
+    render(<App />);
+    await verified();
+    const exampleToken = token().value;
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    await waitFor(() => expect(verdict()).toHaveTextContent('No token'));
+    // The key survived plain Clear, so the same token verifies again as soon as it is pasted back.
+    fireEvent.change(token(), { target: { value: exampleToken } });
+    await verified();
+    expect(screen.getByLabelText('Secret').value).toBe('your-256-bit-secret');
+    expect(screen.getByRole('button', { name: 'Clear all' })).toBeEnabled();
+    await act(async () => {});
+  });
+});

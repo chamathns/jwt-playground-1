@@ -124,3 +124,16 @@ test('modes keep separate drafts and results', async () => {
   expect(result.current.sign.headerText).toBe('');
   expect(signDraft).not.toBe('');
 });
+
+test('clear all discards in-flight checks in both modes', async () => {
+  const { result, engine, verifyCalls, signCalls } = setup();
+  await waitFor(() => expect(engine.verify).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(engine.sign).toHaveBeenCalledTimes(1));
+  act(() => result.current.actions.clearAll());
+  await act(async () => verifyCalls[0].resolve(verified));
+  await act(async () => signCalls[0].resolve({ status: 'ready', token: 'a.b.c', algorithm: 'HS256' }));
+  expect(result.current.verify.result.status).toBe('idle');
+  expect(result.current.sign.result.status).toBe('empty');
+  expect(result.current.verify.material.secret).toBe('');
+  expect(result.current.sign.material.secret).toBe('');
+});

@@ -61,3 +61,43 @@ describe('separation', () => {
     expect(exampled.verify.input).toBe('');
   });
 });
+
+describe('clear all', () => {
+  const filled = () => {
+    let state = start();
+    state = reducer(state, { type: 'verify/material', patch: { secret: 'verify-secret', pem: 'verify-pem' } });
+    return reducer(state, { type: 'sign/material', patch: { secret: 'sign-secret', pem: 'sign-pem' } });
+  };
+
+  test('removes tokens, JSON and every key from both modes', () => {
+    const state = reducer(filled(), { type: 'clearAll' });
+    expect(state.verify.input).toBe('');
+    expect(state.verify.material).toEqual({ secret: '', secretEncoding: 'text', pem: '' });
+    expect(state.sign).toMatchObject({ headerText: '', payloadText: '' });
+    expect(state.sign.material).toEqual({ secret: '', secretEncoding: 'text', pem: '' });
+    expect(JSON.stringify(state)).not.toMatch(/verify-secret|verify-pem|sign-secret|sign-pem/);
+  });
+
+  test('keeps the current mode and resets results', () => {
+    const state = reducer(reducer(filled(), { type: 'mode', mode: 'sign' }), { type: 'clearAll' });
+    expect(state.mode).toBe('sign');
+    expect(state.verify.result).toEqual({ status: 'idle' });
+    expect(state.sign.result).toEqual({ status: 'empty' });
+  });
+
+  test('bumps both revisions so late results cannot bring anything back', () => {
+    const before = filled();
+    const after = reducer(before, { type: 'clearAll' });
+    expect(after.verify.revision).toBe(before.verify.revision + 1);
+    expect(after.sign.revision).toBe(before.sign.revision + 1);
+    const late = reducer(after, { type: 'sign/result', revision: before.sign.revision, result: { status: 'ready', token: 't' } });
+    expect(late.sign.result.status).toBe('empty');
+  });
+
+  test('plain Clear still keeps keys, so it is not mistaken for this', () => {
+    let state = reducer(filled(), { type: 'verify/clear' });
+    state = reducer(state, { type: 'sign/clear' });
+    expect(state.verify.material.secret).toBe('verify-secret');
+    expect(state.sign.material.secret).toBe('sign-secret');
+  });
+});
