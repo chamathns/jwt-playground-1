@@ -115,7 +115,7 @@ describe('signToken', () => {
   });
 
   test('refuses none, unsupported and missing algorithms', async () => {
-    for (const alg of ['"none"', '"NONE"', '"PS256"', '5']) {
+    for (const alg of ['"none"', '"NONE"', '"RS1"', '"ES256K"', '5']) {
       const r = await signToken({ headerText: `{"alg":${alg}}`, payloadText: PAYLOAD }, material());
       expect(r).toMatchObject({ status: 'invalid', error: { code: 'unsupported-algorithm', part: 'header' } });
     }

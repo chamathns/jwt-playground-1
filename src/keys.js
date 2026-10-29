@@ -1,5 +1,6 @@
 import { base64UrlDecodeBytes } from './base64url';
 import { JwtError } from './jwtErrors';
+import { pkcs1PrivateToPkcs8, pkcs1PublicToSpki, sec1ToPkcs8 } from './der';
 
 // The explicit algorithm registry. Nothing outside it is ever signed or verified, and there is no fallback.
 // `signatureBytes` is the fixed width of a JOSE ECDSA signature (raw R || S, never ASN.1 DER).
@@ -13,10 +14,19 @@ export const ALGORITHMS = {
   ES256: { family: 'ec', hash: 'SHA-256', curve: 'P-256', signatureBytes: 64 },
   ES384: { family: 'ec', hash: 'SHA-384', curve: 'P-384', signatureBytes: 96 },
   ES512: { family: 'ec', hash: 'SHA-512', curve: 'P-521', signatureBytes: 132 },
+  // JWA fixes the RSA-PSS salt length to the digest length.
+  PS256: { family: 'rsapss', hash: 'SHA-256', saltLength: 32 },
+  PS384: { family: 'rsapss', hash: 'SHA-384', saltLength: 48 },
+  PS512: { family: 'rsapss', hash: 'SHA-512', saltLength: 64 },
+  // EdDSA means Ed25519 here. Ed448 has no Web Crypto support in current browsers.
+  EdDSA: { family: 'eddsa', curve: 'Ed25519', signatureBytes: 64 },
 };
+
+export const FAMILY_LABELS = { hmac: 'HMAC', rsa: 'RSA', rsapss: 'RSA-PSS', ec: 'ECDSA', eddsa: 'EdDSA' };
 
 const MIN_RSA_BITS = 2048;
 const EC_CURVES = ['P-256', 'P-384', 'P-521'];
+const isRsaFamily = (family) => family === 'rsa' || family === 'rsapss';
 
 export const isSupportedAlgorithm = (alg) =>
   typeof alg === 'string' && Object.prototype.hasOwnProperty.call(ALGORITHMS, alg);
@@ -51,21 +61,37 @@ export function secretBytes({ secret, secretEncoding }) {
 const PEM_BLOCK = /-----BEGIN ([A-Z0-9 ]+)-----([\s\S]*?)-----END \1-----/g;
 
 const NEXT_STEPS = {
-  'RSA PUBLIC KEY': 'PKCS#1 public keys are not supported. Convert: openssl rsa -RSAPublicKey_in -pubout',
-  'RSA PRIVATE KEY': 'PKCS#1 private keys are not supported. Convert: openssl pkcs8 -topk8 -nocrypt -in key.pem',
-  'EC PRIVATE KEY': 'SEC1 private keys are not supported. Convert: openssl pkcs8 -topk8 -nocrypt -in key.pem',
   'ENCRYPTED PRIVATE KEY': 'Encrypted keys are not supported. Use an unencrypted test key.',
   CERTIFICATE: 'Certificates are not supported. Extract the public key: openssl x509 -pubkey -noout -in cert.pem',
 };
 
+// What each PEM label holds and how to turn it into something Web Crypto imports (SPKI or PKCS#8).
+const PUBLIC_LABELS = { 'PUBLIC KEY': (der) => der, 'RSA PUBLIC KEY': pkcs1PublicToSpki };
+const PRIVATE_LABELS = { 'PRIVATE KEY': (der) => der, 'RSA PRIVATE KEY': pkcs1PrivateToPkcs8, 'EC PRIVATE KEY': sec1ToPkcs8 };
+
+function decodePemBody(body) {
+  if (/[:]/.test(body)) {
+    throw new JwtError('key-format', 'key', 'PEM headers (such as encryption info) are not supported.');
+  }
+  const compact = body.replace(/\s+/g, '');
+  if (!compact || !/^[A-Za-z0-9+/]+={0,2}$/.test(compact) || compact.length % 4 !== 0) {
+    throw new JwtError('key-format', 'key', 'The key body is not valid base64.');
+  }
+  const binary = atob(compact);
+  const der = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) der[i] = binary.charCodeAt(i);
+  return der;
+}
+
 function readPem(text, usage) {
-  const wanted = usage === 'verify' ? 'PUBLIC KEY' : 'PRIVATE KEY';
+  const verifying = usage === 'verify';
+  const accepted = verifying ? PUBLIC_LABELS : PRIVATE_LABELS;
   const blocks = [...text.matchAll(PEM_BLOCK)];
   if (blocks.length === 0) {
     throw new JwtError(
       'key-format',
       'key',
-      `Not a PEM key. Expected a block that starts with -----BEGIN ${wanted}-----.`,
+      `Not a PEM key. Expected a block that starts with -----BEGIN ${verifying ? 'PUBLIC' : 'PRIVATE'} KEY-----.`,
     );
   }
   if (blocks.length > 1) {
@@ -73,45 +99,41 @@ function readPem(text, usage) {
   }
   const [, label, body] = blocks[0];
 
-  if (label === wanted) {
-    if (/[:]/.test(body)) {
-      throw new JwtError('key-format', 'key', 'PEM headers (such as encryption info) are not supported.');
-    }
-    const compact = body.replace(/\s+/g, '');
-    if (!compact || !/^[A-Za-z0-9+/]+={0,2}$/.test(compact) || compact.length % 4 !== 0) {
-      throw new JwtError('key-format', 'key', 'The key body is not valid base64.');
-    }
-    const binary = atob(compact);
-    const der = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) der[i] = binary.charCodeAt(i);
-    return der;
+  if (Object.prototype.hasOwnProperty.call(accepted, label)) {
+    return accepted[label](decodePemBody(body));
   }
-
-  const isPrivate = label.endsWith('PRIVATE KEY');
-  if (usage === 'verify' && label === 'PRIVATE KEY') {
+  if (verifying && label.endsWith('PRIVATE KEY') && label !== 'ENCRYPTED PRIVATE KEY') {
     throw new JwtError('key-type', 'key', 'Verification needs a public key (BEGIN PUBLIC KEY). This is a private key.');
   }
-  if (usage === 'sign' && label === 'PUBLIC KEY') {
+  if (!verifying && label.endsWith('PUBLIC KEY')) {
     throw new JwtError('key-type', 'key', 'Signing needs a private key (BEGIN PRIVATE KEY). This is a public key.');
-  }
-  if (usage === 'verify' && isPrivate) {
-    throw new JwtError('key-type', 'key', 'Verification needs a public key (BEGIN PUBLIC KEY). This is a private key.');
   }
   throw new JwtError(
     'key-format',
     'key',
-    NEXT_STEPS[label] || `PEM type "${label}" is not supported. Use ${wanted === 'PUBLIC KEY' ? 'a SubjectPublicKeyInfo public key' : 'a PKCS#8 private key'} (BEGIN ${wanted}).`,
+    NEXT_STEPS[label] ||
+      `PEM type "${label}" is not supported. Use ${verifying ? 'a public key (BEGIN PUBLIC KEY or BEGIN RSA PUBLIC KEY)' : 'an unencrypted private key (BEGIN PRIVATE KEY, BEGIN RSA PRIVATE KEY or BEGIN EC PRIVATE KEY)'}.`,
   );
 }
 
-const importParams = ({ family, hash, curve }) =>
-  family === 'rsa' ? { name: 'RSASSA-PKCS1-v1_5', hash } : { name: 'ECDSA', namedCurve: curve };
+const importParams = ({ family, hash, curve }) => {
+  if (family === 'rsa') return { name: 'RSASSA-PKCS1-v1_5', hash };
+  if (family === 'rsapss') return { name: 'RSA-PSS', hash };
+  if (family === 'eddsa') return { name: 'Ed25519' };
+  return { name: 'ECDSA', namedCurve: curve };
+};
+
+const requirement = (alg, spec) => {
+  if (isRsaFamily(spec.family)) return `${alg} needs an RSA key`;
+  if (spec.family === 'eddsa') return `${alg} needs an Ed25519 key`;
+  return `${alg} needs an EC key on ${spec.curve}`;
+};
 
 /** Work out what a key that failed to import actually is, to give a precise message. */
 async function describeKey(subtle, format, der, usage) {
   try {
-    const key = await subtle.importKey(format, der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, [usage]);
-    return { kind: 'rsa', bits: key.algorithm.modulusLength };
+    await subtle.importKey(format, der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, [usage]);
+    return { kind: 'rsa' };
   } catch {
     // not RSA
   }
@@ -124,8 +146,15 @@ async function describeKey(subtle, format, der, usage) {
       // not this curve
     }
   }
-  return null;
+  try {
+    await subtle.importKey(format, der, { name: 'Ed25519' }, false, [usage]);
+    return { kind: 'okp' };
+  } catch {
+    return null;
+  }
 }
+
+const KIND_NAMES = { rsa: 'an RSA key', okp: 'an Ed25519 key' };
 
 async function importPemKey(alg, material, usage) {
   const spec = ALGORITHMS[alg];
@@ -144,24 +173,29 @@ async function importPemKey(alg, material, usage) {
   let key;
   try {
     key = await subtle.importKey(format, der, importParams(spec), false, [usage]);
-  } catch {
+  } catch (error) {
+    if (error && error.name === 'NotSupportedError') {
+      throw new JwtError(
+        'crypto-unavailable',
+        'key',
+        `This browser does not support ${alg} in Web Crypto. Try a current Chrome, Edge, Firefox or Safari.`,
+      );
+    }
     const actual = await describeKey(subtle, format, der, usage);
-    if (spec.family === 'rsa' && actual?.kind === 'ec') {
-      throw new JwtError('key-type', 'key', `This is an EC key on ${actual.curve}, but ${alg} needs an RSA key.`);
-    }
-    if (spec.family === 'ec' && actual?.kind === 'rsa') {
-      throw new JwtError('key-type', 'key', `This is an RSA key, but ${alg} needs an EC key on ${spec.curve}.`);
-    }
-    if (spec.family === 'ec' && actual?.kind === 'ec') {
+    if (actual?.kind === 'ec' && spec.family === 'ec') {
       throw new JwtError('key-curve', 'key', `This key is on ${actual.curve}, but ${alg} needs ${spec.curve}.`);
+    }
+    if (actual) {
+      const have = actual.kind === 'ec' ? `an EC key on ${actual.curve}` : KIND_NAMES[actual.kind];
+      throw new JwtError('key-type', 'key', `This is ${have}, but ${requirement(alg, spec)}.`);
     }
     throw new JwtError(
       'key-format',
       'key',
-      `The key could not be read. It must be a valid ${usage === 'verify' ? 'SubjectPublicKeyInfo' : 'PKCS#8'} key.`,
+      `The key could not be read. It must be a valid ${usage === 'verify' ? 'public' : 'private'} key for ${alg}.`,
     );
   }
-  if (spec.family === 'rsa' && key.algorithm.modulusLength < MIN_RSA_BITS) {
+  if (isRsaFamily(spec.family) && key.algorithm.modulusLength < MIN_RSA_BITS) {
     throw new JwtError(
       'key-size',
       'key',
@@ -188,5 +222,7 @@ export function signParams(alg) {
   const { family, hash } = ALGORITHMS[alg];
   if (family === 'hmac') return { name: 'HMAC' };
   if (family === 'rsa') return { name: 'RSASSA-PKCS1-v1_5' };
+  if (family === 'rsapss') return { name: 'RSA-PSS', saltLength: ALGORITHMS[alg].saltLength };
+  if (family === 'eddsa') return { name: 'Ed25519' };
   return { name: 'ECDSA', hash };
 }

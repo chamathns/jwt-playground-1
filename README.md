@@ -24,18 +24,32 @@ and are shown separately.
 
 ## Algorithms and keys
 
-HS256/384/512 (secret as UTF-8 text or Base64URL bytes), RS256/384/512 and ES256/384/512 (PEM keys: public key as
-SubjectPublicKeyInfo to verify, unencrypted PKCS#8 private key to sign; RSA keys of 2048 bits or more; ES256, ES384
-and ES512 need P-256, P-384 and P-521). `none` and every algorithm outside this list are reported as unsupported,
-never verified. Tokens with `crit` extensions or `b64: false` are refused. There is no key lookup, JWKS fetch or
-`kid` handling.
+| Family | Algorithms | Key to verify | Key to sign |
+| --- | --- | --- | --- |
+| HMAC | HS256, HS384, HS512 | secret | same secret |
+| RSA | RS256, RS384, RS512 | public key | private key |
+| RSA-PSS | PS256, PS384, PS512 | public key | private key |
+| ECDSA | ES256 (P-256), ES384 (P-384), ES512 (P-521) | public key | private key |
+| EdDSA | EdDSA (Ed25519 only) | public key | private key |
+
+- **HMAC secrets** are UTF-8 text or Base64URL bytes (binary secrets work).
+- **PEM keys** are unencrypted. Public keys: `BEGIN PUBLIC KEY` (SPKI) or `BEGIN RSA PUBLIC KEY` (PKCS#1). Private
+  keys: `BEGIN PRIVATE KEY` (PKCS#8), `BEGIN RSA PRIVATE KEY` (PKCS#1) or `BEGIN EC PRIVATE KEY` (SEC1). PKCS#1 and
+  SEC1 keys are re-wrapped into PKCS#8 or SPKI before import (`src/der.js`); this changes the encoding, not the key.
+  Encrypted keys, certificates and PEM headers are refused with a conversion hint.
+- **Checks:** RSA keys must be 2048 bits or more. The key's type and curve must match the token's algorithm, and a
+  public key is never accepted for signing or a private key for verifying.
+- **RSA-PSS** uses a salt as long as the digest, as JWA requires. **EdDSA** needs a browser with Ed25519 in Web
+  Crypto (current Chrome, Edge, Firefox and Safari); otherwise the key panel says so. Ed448 is not supported.
+- `none` and every algorithm outside the table are reported as unsupported, never verified. Tokens with `crit`
+  extensions or `b64: false` are refused. There is no key lookup, JWKS fetch or `kid` handling.
 
 ## Layout
 
 - `src/jwt.js`: pure logic with typed results (`decodeToken`, `verifyToken`, `signToken`, `describeClaims`).
 - `src/keys.js`: algorithm registry, secret bytes and PEM import. HMAC reads only the secret and RSA/ECDSA read only
   the PEM, so a public key can never be reused as an HMAC secret.
-- `src/base64url.js`, `src/jwtErrors.js`: encoding and the error-code contract.
+- `src/base64url.js`, `src/der.js`, `src/jwtErrors.js`: encoding, key re-wrapping and the error-code contract.
 - `src/jwtState.js`, `src/useJwt.js`: two drafts with per-draft revisions bumped on every edit, so a late async
   result can never overwrite newer input.
 - `src/status.js`: result objects to user-facing words. `src/App.jsx` and friends: plain components and

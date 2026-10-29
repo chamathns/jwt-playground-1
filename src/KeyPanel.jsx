@@ -37,13 +37,13 @@ export default function KeyPanel({ title, algorithm, material, onChange, error, 
           />
         </div>
       )}
-      {(family === 'rsa' || family === 'ec') && (
+      {family && family !== 'hmac' && (
         <div className="field">
           <div className="field-head">
             <label htmlFor="pem">{verifying ? 'Public key (PEM)' : 'Private key (PEM)'}</label>
             <span className="hint">
-              {verifying ? 'SubjectPublicKeyInfo' : 'PKCS#8, unencrypted'}
-              {family === 'ec' && ` \u00b7 ${ALGORITHMS[algorithm].curve}`}
+              {verifying ? 'SPKI or PKCS#1' : 'PKCS#8, PKCS#1 or SEC1, unencrypted'}
+              {(family === 'ec' || family === 'eddsa') && ` \u00b7 ${ALGORITHMS[algorithm].curve}`}
             </span>
           </div>
           <textarea

@@ -286,3 +286,46 @@ describe('claims and copy controls', () => {
     expect(screen.getByRole('button', { name: 'Copy payload' })).toBeDisabled();
   });
 });
+
+describe('RSA-PSS, EdDSA and legacy key formats', () => {
+  const { generateKeyPairSync } = require('crypto');
+  const select = () => screen.getAllByLabelText('Algorithm')[0];
+  const openSign = () => fireEvent.click(screen.getByRole('tab', { name: 'Sign a token' }));
+
+  test('the algorithm list is grouped by family and includes PS and EdDSA', async () => {
+    render(<App />);
+    openSign();
+    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    const groups = [...select().querySelectorAll('optgroup')].map((g) => g.label);
+    expect(groups).toEqual(['HMAC', 'RSA', 'RSA-PSS', 'ECDSA', 'EdDSA']);
+    const options = [...select().querySelectorAll('option')].map((o) => o.value);
+    expect(options).toEqual(expect.arrayContaining(['PS256', 'PS384', 'PS512', 'EdDSA']));
+  });
+
+  test('EdDSA signs with an Ed25519 key and the key panel says which key it wants', async () => {
+    const pair = generateKeyPairSync('ed25519');
+    render(<App />);
+    openSign();
+    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    fireEvent.change(select(), { target: { value: 'EdDSA' } });
+    await waitFor(() => expect(verdict()).toHaveTextContent('Cannot sign yet'));
+    expect(screen.getByText(/PKCS#8, PKCS#1 or SEC1, unencrypted \u00b7 Ed25519/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Private key (PEM)'), {
+      target: { value: pair.privateKey.export({ type: 'pkcs8', format: 'pem' }) },
+    });
+    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    expect(verdict()).toHaveTextContent(/Signed with EdDSA/);
+  });
+
+  test('PS256 signs with a PKCS#1 private key', async () => {
+    const pair = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    render(<App />);
+    openSign();
+    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    fireEvent.change(select(), { target: { value: 'PS256' } });
+    fireEvent.change(await screen.findByLabelText('Private key (PEM)'), {
+      target: { value: pair.privateKey.export({ type: 'pkcs1', format: 'pem' }) },
+    });
+    await waitFor(() => expect(verdict()).toHaveTextContent(/Signed with PS256/));
+  });
+});

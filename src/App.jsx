@@ -7,6 +7,7 @@ import Tabs from './Tabs';
 import TokenField from './TokenField';
 import useJwt from './useJwt';
 import { ALGORITHMS } from './jwt';
+import { FAMILY_LABELS } from './keys';
 import { describeSign, describeVerify } from './status';
 
 const TABS = [
@@ -97,6 +98,7 @@ function VerifyMode({ jwt, notify }) {
 function SignMode({ jwt }) {
   const { sign, actions } = jwt;
   const algorithmOptions = Object.keys(ALGORITHMS);
+  const families = Object.keys(FAMILY_LABELS);
   const known = algorithmOptions.includes(sign.alg);
   const headerInvalid = sign.result.error?.part === 'header' && ['json', 'json-object'].includes(sign.result.error.code);
   const ready = sign.result.status === 'ready';
@@ -128,8 +130,14 @@ function SignMode({ jwt }) {
                   {sign.alg ? String(sign.alg) : 'none'}
                 </option>
               )}
-              {algorithmOptions.map((name) => (
-                <option key={name} value={name}>{name}</option>
+              {families.map((family) => (
+                <optgroup key={family} label={FAMILY_LABELS[family]}>
+                  {algorithmOptions
+                    .filter((name) => ALGORITHMS[name].family === family)
+                    .map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                </optgroup>
               ))}
             </select>
           </JsonField>
@@ -201,9 +209,9 @@ export default function App() {
   return (
     <div className="shell">
       <header className="topbar">
-        <span className="mark" aria-hidden="true">JWT</span>
+        <span className="mark" aria-hidden="true"><i></i><i></i><i></i></span>
         <span className="product">JWT Playground</span>
-        <span className="privacy">Runs in your browser. Tokens and keys are never sent anywhere.</span>
+        <span className="privacy"><span className="privacy-dot" aria-hidden="true"></span>Private by design <span className="privacy-detail">· Runs entirely in your browser</span></span>
       </header>
 
       <main className="canvas">
