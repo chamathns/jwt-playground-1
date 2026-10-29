@@ -5,14 +5,14 @@ export default function JsonField({ label, hint, value, onChange, error, tone, r
   const id = useId();
   const rows = Math.max(4, value.split('\n').length);
   return (
-    <section className="field" data-tone={tone}>
+    <section className="field code-field" data-tone={tone} data-readonly={readOnly || undefined}>
       <div className="field-head">
-        <label htmlFor={id}>{label}</label>
+        <span className="code-field-mark" aria-hidden="true">{'{ }'}</span><label htmlFor={id}>{label}</label>
         <span className="hint">{hint}</span>
         {children}
         {copyLabel && (
           <span className={children ? undefined : 'push'}>
-            <CopyButton text={value} label="Copy" ariaLabel={copyLabel} disabled={!value.trim()} />
+            <CopyButton text={value} label="Copy" ariaLabel={copyLabel} disabled={!value.trim()} icon />
           </span>
         )}
       </div>

@@ -5,7 +5,11 @@ export default function TokenField({ id, label, value, onChange, error, errorId,
   const hasPayload = payload !== undefined;
   const hasSignature = signature.length > 0;
 
+  const parts = [header, payload, signature.join('.')];
+  const showSegments = hasPayload && signature.length === 1 && parts.every(Boolean);
+
   return (
+    <>
     <div className="token" data-readonly={readOnly || undefined}>
       <pre className="token-mirror" aria-hidden="true">
         <span className="seg-header">{header}</span>
@@ -38,5 +42,13 @@ export default function TokenField({ id, label, value, onChange, error, errorId,
         autoComplete="off"
       />
     </div>
+    {showSegments && (
+      <div className="token-segments" aria-hidden="true">
+        {parts.map((part, index) => (
+          <span key={index} className={`token-segment segment-${index}`} style={{ flexGrow: part.length }} />
+        ))}
+      </div>
+    )}
+    </>
   );
 }

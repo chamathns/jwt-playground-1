@@ -20,10 +20,11 @@ const partError = (result, part) => (result.error?.part === part ? result.error.
 
 function Verdict({ view }) {
   return (
-    <p className="verdict" data-tone={view.tone}>
+    <div className="verdict" data-tone={view.tone}>
       <strong>{view.title}</strong>
-      {view.message && <span>{view.message}</span>}
-    </p>
+      {view.title === 'Signature verified' && <span>The signature matches this key. Claims aren’t validated.</span>}
+      {view.message && (view.tone === 'positive' ? <details className="verdict-details"><summary>What this means</summary><span>{view.message}</span></details> : <span>{view.message}</span>)}
+    </div>
   );
 }
 
@@ -36,7 +37,7 @@ function VerifyMode({ jwt, notify }) {
   return (
     <div className="columns">
       <div className="column">
-        <section className="panel panel-grow">
+        <section className="panel panel-grow" data-ui>
           <h2>Encoded token</h2>
           <TokenField
             id="verify-token"
@@ -49,7 +50,7 @@ function VerifyMode({ jwt, notify }) {
           />
           {tokenError && <p className="error" id="verify-token-error">{tokenError}</p>}
           {decoded.trimmed && (
-            <p className="note">Spaces around the token were ignored. Your input is unchanged.</p>
+            <p className="note">Spaces around the token were ignored for verification. Your input hasn’t changed.</p>
           )}
           <ul className="legend" aria-label="Token parts">
             <li data-tone="header">Header</li>
@@ -61,11 +62,11 @@ function VerifyMode({ jwt, notify }) {
       </div>
 
       <div className="column">
-        <section className="panel">
+        <section className="panel" data-ui>
           <h2>Decoded <span className="hint">read-only</span></h2>
           <JsonField
             label="Header"
-            hint={algorithm ? `Algorithm ${displayAlgorithm(algorithm)}` : 'Algorithm and token type'}
+            hint={algorithm ? `Algorithm ${displayAlgorithm(algorithm)}` : ''}
             tone="header"
             value={decoded.header?.text ?? ''}
             copyLabel="Copy header"
@@ -74,7 +75,7 @@ function VerifyMode({ jwt, notify }) {
           />
           <JsonField
             label="Payload"
-            hint="Claims"
+            hint=""
             tone="payload"
             value={decoded.payload?.text ?? ''}
             copyLabel="Copy payload"
@@ -106,11 +107,11 @@ function SignMode({ jwt }) {
   return (
     <div className="columns">
       <div className="column">
-        <section className="panel">
-          <h2>Edit</h2>
+        <section className="panel" data-ui>
+          <h2>Token contents</h2>
           <JsonField
             label="Header"
-            hint="Algorithm and token type"
+            hint=""
             tone="header"
             value={sign.headerText}
             copyLabel="Copy header"
@@ -143,7 +144,7 @@ function SignMode({ jwt }) {
           </JsonField>
           <JsonField
             label="Payload"
-            hint="Claims"
+            hint=""
             tone="payload"
             value={sign.payloadText}
             copyLabel="Copy payload"
@@ -161,14 +162,14 @@ function SignMode({ jwt }) {
       </div>
 
       <div className="column">
-        <section className="panel panel-grow">
+        <section className="panel panel-grow" data-ui>
           <h2>Generated token <span className="hint">new, not verified</span></h2>
           <TokenField
             id="sign-token"
             label="Generated token"
             value={ready ? sign.result.token : ''}
             readOnly
-            placeholder="The signed token appears here"
+            placeholder="Your signed token will appear here"
           />
           {ready && keyWarnings(sign.alg, sign.material).length > 0 && (
             <p className="warning">
@@ -233,13 +234,32 @@ export default function App() {
       <header className="topbar">
         <span className="mark" aria-hidden="true"><i></i><i></i><i></i></span>
         <span className="product">JWT Playground</span>
-        <span className="privacy"><span className="privacy-dot" aria-hidden="true"></span>Private by design <span className="privacy-detail">· Runs entirely in your browser</span></span>
+        <nav className="landing-nav" aria-label="Main navigation"><a href="#workspace">Playground</a><a href="#about">Privacy</a></nav>
+        <span className="privacy"><span className="privacy-dot" aria-hidden="true"></span>Runs in your browser</span>
       </header>
 
-      <main className="canvas">
+      <section className="landing-hero" aria-labelledby="landing-title">
+        <div className="hero-copy">
+          <h1 id="landing-title">Decode, verify<br />and sign JWTs.</h1>
+          <p>Inspect and create JSON Web Tokens in your browser.</p>
+          <a className="hero-action" href="#workspace">Try the playground <span aria-hidden="true">↘</span></a>
+        </div>
+        <div className="hero-anatomy" aria-label="A JSON Web Token has a header, payload, and signature">
+          {['Header', 'Payload', 'Signature'].map((part, index) => {
+            const segment = verify.input.split('.')[index] || '';
+            return <div className={`anatomy-part anatomy-${index}`} data-ui key={part}>
+              <span className="anatomy-name">{part}</span>
+              <code>{segment ? `${segment.slice(0, 24)}${segment.length > 24 ? '…' : ''}` : '—'}</code>
+              <span className="anatomy-arrow" aria-hidden="true">↗</span>
+            </div>;
+          })}
+        </div>
+      </section>
+
+      <main className="canvas" id="workspace">
         <div className="title-row">
           <div>
-            <h1>Decode, verify and sign JSON Web Tokens</h1>
+            <h2 className="workspace-title">Token workspace</h2>
             <Verdict view={view} />
           </div>
           <div className="actions">
@@ -275,6 +295,11 @@ export default function App() {
         <div className="sr-only" role="status">{spoken}</div>
         <div className="sr-only" role="status">{notice}</div>
       </main>
+      <section className="about-section" id="about">
+        <div><h2>Your tokens stay<br />in your browser.</h2></div>
+        <div className="about-copy"><p>Your tokens and keys are processed in your browser. They aren’t sent to a server or saved.</p><p>Decode a token to inspect its contents, verify its signature with a key, or sign a new token.</p><a href="#workspace">Go to the playground ↑</a></div>
+      </section>
+      <footer className="landing-footer"><span>JWT Playground</span><span>Decode · Verify · Sign</span></footer>
     </div>
   );
 }

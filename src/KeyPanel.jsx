@@ -7,13 +7,13 @@ export default function KeyPanel({ title, algorithm, material, onChange, error, 
   const warnings = keyWarnings(algorithm, material);
 
   return (
-    <section className="panel" data-tone="signature">
+    <section className="panel" data-tone="signature" data-ui>
       <h2>{title}</h2>
       {family === 'hmac' && (
         <div className="field">
           <div className="field-head">
             <label htmlFor="secret">Secret</label>
-            <span className="hint">{verifying ? 'Checks the signature' : 'Signs the token'}</span>
+
             <select
               id="secret-format"
               name="secret-format"
@@ -89,7 +89,7 @@ export default function KeyPanel({ title, algorithm, material, onChange, error, 
           {error}
         </p>
       )}
-      {family && verifying && <p className="note">Changing the key only re-checks the signature. The token is never changed.</p>}
+
     </section>
   );
 }

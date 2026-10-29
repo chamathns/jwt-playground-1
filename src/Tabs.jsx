@@ -17,7 +17,7 @@ export default function Tabs({ tabs, value, onChange, label }) {
   };
 
   return (
-    <div role="tablist" aria-label={label} className="tabs" onKeyDown={move}>
+    <div role="tablist" aria-label={label} className="tabs" data-ui onKeyDown={move}>
       {tabs.map((tab) => (
         <button
           key={tab.id}

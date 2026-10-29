@@ -1,14 +1,14 @@
 export default function ClaimsPanel({ claims }) {
   if (claims.length === 0) return null;
   return (
-    <section className="panel">
+    <section className="panel" data-ui>
       <h2>Registered claims</h2>
       <dl className="claims">
         {claims.map((claim) => (
           <div key={claim.claim} className="claim">
             <dt>
               {claim.label} <code>{claim.claim}</code>
-              <span className="claim-help">{claim.description}</span>
+              <span className="sr-only">{claim.description}</span>
             </dt>
             <dd>
               {claim.utc ? (
@@ -28,10 +28,7 @@ export default function ClaimsPanel({ claims }) {
           </div>
         ))}
       </dl>
-      <p className="note">
-        Time flags use this device's clock. They are separate from the signature check, and issuer and audience are
-        shown but not validated.
-      </p>
+      <details className="claim-details"><summary>About claims</summary><p>Time flags use this device's clock. They are separate from the signature check, and issuer and audience are shown but not validated.</p></details>
     </section>
   );
 }
