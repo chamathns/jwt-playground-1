@@ -58,6 +58,15 @@ describe('content security policy', () => {
   });
 });
 
+describe('deployment', () => {
+  test('the host publishes the folder Vite builds into, whatever framework preset the project has', () => {
+    const outDir = /outDir:\s*'([^']+)'/.exec(read('vite.config.mjs'))[1];
+    expect(vercel.outputDirectory).toBe(outDir);
+    expect(vercel.buildCommand).toBe('npm run build');
+    expect(JSON.parse(read('package.json')).scripts.build).toBe('vite build');
+  });
+});
+
 describe('response headers', () => {
   test('apply to every path and add the basic hardening set', () => {
     expect(vercel.headers[0].source).toBe('/(.*)');
