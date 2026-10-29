@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { ALGORITHMS, MIN_HMAC_BYTES, algorithmSpec, keyWarnings, randomSecret } from './keys';
+import { ALGORITHMS, MIN_HMAC_BYTES, algorithmSpec, displayAlgorithm, keyWarnings, randomSecret } from './keys';
 
 const text = (secret) => ({ secret, secretEncoding: 'text', pem: '' });
 const b64 = (bytes) => ({ secret: Buffer.from(bytes).toString('base64url'), secretEncoding: 'base64url', pem: '' });
@@ -67,5 +67,34 @@ describe('algorithmSpec', () => {
     for (const hostile of ['constructor', '__proto__', 'toString', 'hasOwnProperty', '', undefined, null, 5, [], {}, { toString: null }]) {
       expect(algorithmSpec(hostile)).toBeNull();
     }
+  });
+});
+
+describe('displayAlgorithm', () => {
+  test('strings pass through and empty values show nothing', () => {
+    expect(displayAlgorithm('HS256')).toBe('HS256');
+    expect(displayAlgorithm('')).toBe('');
+    expect(displayAlgorithm(undefined)).toBe('');
+    expect(displayAlgorithm(null)).toBe('');
+  });
+
+  test('any other JSON value becomes text and never throws', () => {
+    expect(displayAlgorithm({ toString: null })).toBe('{"toString":null}');
+    expect(displayAlgorithm(JSON.parse('{"valueOf":null,"toString":null}'))).toBe('{"valueOf":null,"toString":null}');
+    // JSON.parse makes __proto__ an ordinary own property, so it shows as written.
+    expect(displayAlgorithm(JSON.parse('{"__proto__":{"x":1}}'))).toBe('{"__proto__":{"x":1}}');
+    expect(displayAlgorithm([1, { a: 2 }])).toBe('[1,{"a":2}]');
+    expect(displayAlgorithm(5)).toBe('5');
+    expect(displayAlgorithm(true)).toBe('true');
+  });
+
+  test('values JSON cannot represent still do not throw', () => {
+    const cyclic = {};
+    cyclic.self = cyclic;
+    expect(displayAlgorithm(cyclic)).toBe('object');
+    expect(displayAlgorithm({ toJSON() { throw new Error('boom'); } })).toBe('object');
+    expect(displayAlgorithm(() => 1)).toBe('function');
+    expect(displayAlgorithm(Symbol('s'))).toBe('symbol');
+    expect(displayAlgorithm({ toJSON: () => undefined })).toBe('object');
   });
 });

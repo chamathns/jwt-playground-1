@@ -32,6 +32,21 @@ const isRsaFamily = (family) => family === 'rsa' || family === 'rsapss';
 export const algorithmSpec = (alg) =>
   typeof alg === 'string' && Object.prototype.hasOwnProperty.call(ALGORITHMS, alg) ? ALGORITHMS[alg] : null;
 
+/**
+ * An algorithm value from a header, as text that is safe to show. The header is untrusted JSON, so `alg` can be
+ * any value, including an object whose toString is null: String() and property indexing both throw on that.
+ */
+export function displayAlgorithm(alg) {
+  if (typeof alg === 'string') return alg;
+  if (alg === undefined || alg === null) return '';
+  try {
+    const json = JSON.stringify(alg);
+    return json === undefined ? typeof alg : json;
+  } catch {
+    return typeof alg;
+  }
+}
+
 export const isSupportedAlgorithm = (alg) =>
   typeof alg === 'string' && Object.prototype.hasOwnProperty.call(ALGORITHMS, alg);
 

@@ -7,7 +7,7 @@ import Tabs from './Tabs';
 import TokenField from './TokenField';
 import useJwt from './useJwt';
 import { ALGORITHMS } from './jwt';
-import { FAMILY_LABELS, keyWarnings } from './keys';
+import { FAMILY_LABELS, algorithmSpec, displayAlgorithm, keyWarnings } from './keys';
 import { describeSign, describeVerify } from './status';
 
 const TABS = [
@@ -65,7 +65,7 @@ function VerifyMode({ jwt, notify }) {
           <h2>Decoded <span className="hint">read-only</span></h2>
           <JsonField
             label="Header"
-            hint={algorithm ? `Algorithm ${String(algorithm)}` : 'Algorithm and token type'}
+            hint={algorithm ? `Algorithm ${displayAlgorithm(algorithm)}` : 'Algorithm and token type'}
             tone="header"
             value={decoded.header?.text ?? ''}
             copyLabel="Copy header"
@@ -99,7 +99,7 @@ function SignMode({ jwt }) {
   const { sign, actions } = jwt;
   const algorithmOptions = Object.keys(ALGORITHMS);
   const families = Object.keys(FAMILY_LABELS);
-  const known = algorithmOptions.includes(sign.alg);
+  const known = Boolean(algorithmSpec(sign.alg));
   const headerInvalid = sign.result.error?.part === 'header' && ['json', 'json-object'].includes(sign.result.error.code);
   const ready = sign.result.status === 'ready';
 
@@ -127,13 +127,13 @@ function SignMode({ jwt }) {
             >
               {!known && (
                 <option value="" disabled>
-                  {sign.alg ? String(sign.alg) : 'none'}
+                  {sign.alg ? displayAlgorithm(sign.alg) : 'none'}
                 </option>
               )}
               {families.map((family) => (
                 <optgroup key={family} label={FAMILY_LABELS[family]}>
                   {algorithmOptions
-                    .filter((name) => ALGORITHMS[name].family === family)
+                    .filter((name) => algorithmSpec(name).family === family)
                     .map((name) => (
                       <option key={name} value={name}>{name}</option>
                     ))}

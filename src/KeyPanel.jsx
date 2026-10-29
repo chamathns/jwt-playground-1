@@ -1,9 +1,9 @@
-import { ALGORITHMS } from './jwt';
-import { keyWarnings, randomSecret } from './keys';
+import { algorithmSpec, displayAlgorithm, keyWarnings, randomSecret } from './keys';
 
 // Key input that matches the token's algorithm. Verification and signing share the layout, not the state.
 export default function KeyPanel({ title, algorithm, material, onChange, error, verifying }) {
-  const family = ALGORITHMS[algorithm]?.family;
+  const spec = algorithmSpec(algorithm);
+  const family = spec?.family;
   const warnings = keyWarnings(algorithm, material);
 
   return (
@@ -59,7 +59,7 @@ export default function KeyPanel({ title, algorithm, material, onChange, error, 
             <label htmlFor="pem">{verifying ? 'Public key (PEM)' : 'Private key (PEM)'}</label>
             <span className="hint">
               {verifying ? 'SPKI or PKCS#1' : 'PKCS#8, PKCS#1 or SEC1, unencrypted'}
-              {(family === 'ec' || family === 'eddsa') && ` \u00b7 ${ALGORITHMS[algorithm].curve}`}
+              {(family === 'ec' || family === 'eddsa') && ` \u00b7 ${spec.curve}`}
             </span>
           </div>
           <textarea
@@ -81,7 +81,7 @@ export default function KeyPanel({ title, algorithm, material, onChange, error, 
         <p className="note">
           {algorithm === undefined || algorithm === null
             ? 'The key field appears once the token has a supported algorithm.'
-            : `Algorithm ${JSON.stringify(algorithm)} is not supported, so no key is needed.`}
+            : `Algorithm ${displayAlgorithm(algorithm)} is not supported, so no key is needed.`}
         </p>
       )}
       {error && (

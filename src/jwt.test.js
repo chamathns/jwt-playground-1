@@ -123,6 +123,16 @@ describe('signToken', () => {
     expect(missing.error.code).toBe('unsupported-algorithm');
   });
 
+  test('a non-string alg gets its own explanation, for objects, arrays, numbers and missing values', async () => {
+    for (const alg of ['{"toString":null}', '[]', '7', 'null', 'true']) {
+      const r = await signToken({ headerText: `{"alg":${alg}}`, payloadText: PAYLOAD }, material());
+      expect(r).toMatchObject({ status: 'invalid', error: { code: 'unsupported-algorithm', part: 'header' } });
+      expect(r.error.message).toMatch(/"alg" must be a string that names an algorithm/);
+    }
+    const v = await verifyToken(`${enc('{"alg":{"toString":null}}')}.${enc(PAYLOAD)}.c2ln`, material());
+    expect(v).toMatchObject({ status: 'unsupported', error: { code: 'unsupported-algorithm' } });
+  });
+
   test('reports each editor problem with its part', async () => {
     expect((await signToken({ headerText: HEADER, payloadText: PAYLOAD }, material(''))).error).toMatchObject({
       code: 'missing-key',

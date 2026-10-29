@@ -104,12 +104,18 @@ function requireAlgorithm(header) {
       'This token is unsigned (alg none). Unsigned tokens are never reported as verified.',
     );
   }
-  if (!isSupportedAlgorithm(alg)) {
-    const shown = typeof alg === 'string' ? JSON.stringify(alg) : 'missing or not a string';
+  if (typeof alg !== 'string') {
     throw new JwtError(
       'unsupported-algorithm',
       'header',
-      `Algorithm ${shown} is not supported. Supported: ${Object.keys(ALGORITHMS).join(', ')}.`,
+      `The header's "alg" must be a string that names an algorithm. Supported: ${Object.keys(ALGORITHMS).join(', ')}.`,
+    );
+  }
+  if (!isSupportedAlgorithm(alg)) {
+    throw new JwtError(
+      'unsupported-algorithm',
+      'header',
+      `Algorithm ${JSON.stringify(alg)} is not supported. Supported: ${Object.keys(ALGORITHMS).join(', ')}.`,
     );
   }
   return alg;

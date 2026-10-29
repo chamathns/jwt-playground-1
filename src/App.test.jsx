@@ -466,3 +466,66 @@ describe('clearing keys', () => {
     await act(async () => {});
   });
 });
+
+describe('hostile algorithm and claim values', () => {
+  const enc = (v) => Buffer.from(typeof v === 'string' ? v : JSON.stringify(v)).toString('base64url');
+  const tokenWith = (header, payload = '{"sub":"x"}') => `${enc(header)}.${enc(payload)}.c2ln`;
+
+  test('an object alg shows as unsupported in Verify mode and does not crash', async () => {
+    render(<App />);
+    fireEvent.change(token(), { target: { value: tokenWith('{"alg":{"toString":null}}') } });
+    await waitFor(() => expect(verdict()).toHaveTextContent('Not supported'));
+    expect(verdict()).toHaveTextContent(/"alg" must be a string that names an algorithm\. Supported: HS256/);
+    expect(screen.getByText('Algorithm {"toString":null}')).toBeInTheDocument();
+    expect(screen.getByText(/Algorithm \{"toString":null\} is not supported, so no key is needed/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Secret')).not.toBeInTheDocument();
+  });
+
+  test('an object alg typed into the Sign header shows as unsupported and does not crash', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Sign a token' }));
+    fireEvent.change(screen.getByLabelText('Header'), { target: { value: '{"alg":{"toString":null}}' } });
+    await waitFor(() => expect(verdict()).toHaveTextContent('Cannot sign yet'));
+    expect(verdict()).toHaveTextContent(/"alg" must be a string/);
+    expect(screen.getByRole('combobox', { name: 'Algorithm' })).toHaveDisplayValue('{"toString":null}');
+    // The page is still usable: a valid algorithm brings the key field back.
+    fireEvent.change(screen.getByLabelText('Header'), { target: { value: '{"alg":"HS256"}' } });
+    expect(await screen.findByLabelText('Secret')).toBeInTheDocument();
+  });
+
+  const ALGS = [
+    '{"toString":null}', '{"valueOf":null,"toString":null}', '{"__proto__":{"x":1}}', '{"constructor":1}',
+    '[]', '[1,2]', 'null', 'true', '0', '1e308', '-0', '""', '"constructor"', '"__proto__"', '"toString"',
+    '"hasOwnProperty"', '"none"', '"None"', '"HS256 "', '"hs256"', '"\\u0000"', '"<img src=x onerror=alert(1)>"',
+  ];
+
+  test.each(ALGS)('alg %s never crashes Verify mode', async (alg) => {
+    const { unmount } = render(<App />);
+    fireEvent.change(token(), { target: { value: tokenWith(`{"alg":${alg}}`) } });
+    await waitFor(() => expect(verdict()).not.toHaveTextContent('Checking'));
+    expect(document.querySelector('.verdict strong').textContent).toMatch(/Not supported|Unverified|Signature|Invalid|Key problem/);
+    expect(document.querySelector('img')).toBeNull(); // text is rendered as text, never as markup
+    unmount();
+  });
+
+  test.each(ALGS)('alg %s never crashes Sign mode', async (alg) => {
+    const { unmount } = render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Sign a token' }));
+    fireEvent.change(screen.getByLabelText('Header'), { target: { value: `{"alg":${alg}}` } });
+    await waitFor(() => expect(verdict()).not.toHaveTextContent('Signing'));
+    expect(screen.getByRole('combobox', { name: 'Algorithm' })).toBeInTheDocument();
+    expect(document.querySelector('img')).toBeNull();
+    unmount();
+  });
+
+  test.each(['{"toString":null}', '[{"toString":null}]', '{"__proto__":{}}', 'null', '"<b>x</b>"'])(
+    'registered claims with the value %s never crash and are shown as text',
+    async (value) => {
+      render(<App />);
+      const payload = `{"iss":${value},"sub":${value},"aud":${value},"exp":${value},"nbf":${value},"iat":${value},"jti":${value}}`;
+      fireEvent.change(token(), { target: { value: tokenWith('{"alg":"HS256"}', payload) } });
+      expect(await screen.findByText('Registered claims')).toBeInTheDocument();
+      expect(document.querySelector('b')).toBeNull();
+    },
+  );
+});
