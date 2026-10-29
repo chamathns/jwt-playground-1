@@ -233,7 +233,11 @@ describe('describeClaims', () => {
     const rows = describeClaims({ jti: 'x', exp: sec + 60, iss: 'issuer.test', aud: ['a', 'b'], sub: 7, extra: 1 }, now);
     expect(rows.map((r) => r.claim)).toEqual(['iss', 'sub', 'aud', 'exp', 'jti']);
     expect(rows[0]).toMatchObject({ label: 'Issuer', value: 'issuer.test' });
-    expect(rows[0].description).toMatch(/created/);
+    expect(rows[0].description).toBe('Claimed issuer: who the token says created it.');
+    // No description asserts a claim as fact.
+    for (const row of describeClaims({ iss: 1, sub: 1, aud: 1, exp: 1, nbf: 1, iat: 1, jti: 1 }, now)) {
+      expect(row.description).toMatch(/claim|says|gives itself/i);
+    }
     expect(rows[2].value).toBe('["a","b"]');
     expect(rows[1].value).toBe('7');
   });

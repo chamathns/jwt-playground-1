@@ -237,14 +237,16 @@ export function relativeTime(seconds) {
   return formatter.format(Math.round(seconds / size), unit);
 }
 
+// Every description says what the token CLAIMS. None of these values is validated here, even when the
+// signature verifies: a verified signature does not make an issuer, subject or audience true.
 const REGISTERED_CLAIMS = [
-  ['iss', 'Issuer', 'Who created and signed the token.'],
-  ['sub', 'Subject', 'Who the token is about.'],
-  ['aud', 'Audience', 'Who the token is meant for.'],
-  ['exp', 'Expires', 'The token should not be accepted after this time.'],
-  ['nbf', 'Not before', 'The token should not be accepted before this time.'],
-  ['iat', 'Issued', 'When the token was created.'],
-  ['jti', 'JWT ID', 'A unique identifier for this token.'],
+  ['iss', 'Issuer', 'Claimed issuer: who the token says created it.'],
+  ['sub', 'Subject', 'Claimed subject: who the token says it is about.'],
+  ['aud', 'Audience', 'Claimed audience: who the token says it is for.'],
+  ['exp', 'Expires', 'The token says it should not be accepted after this time.'],
+  ['nbf', 'Not before', 'The token says it should not be accepted before this time.'],
+  ['iat', 'Issued', 'When the token says it was created.'],
+  ['jti', 'JWT ID', 'An identifier the token gives itself.'],
 ];
 const TIME_CLAIMS = new Set(['exp', 'nbf', 'iat']);
 

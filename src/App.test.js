@@ -246,7 +246,7 @@ describe('claims and copy controls', () => {
     render(<App />);
     await verified();
     expect(screen.getByText('Registered claims')).toBeInTheDocument();
-    expect(screen.getByText('Who the token is about.')).toBeInTheDocument();
+    expect(screen.getByText('Claimed subject: who the token says it is about.')).toBeInTheDocument();
     expect(screen.getByText(/separate from the signature check/)).toBeInTheDocument();
   });
 
