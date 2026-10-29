@@ -284,7 +284,7 @@ input.secret { width: 100%; padding: 0 12px; font-family: var(--mono); font-size
   --pill-negative-bg: #ffedea; --pill-negative-ink: #831c1e;
   --pill-warning-bg: #fffbeb; --pill-warning-ink: #92400e;
   --font: 'IBM Plex Sans', system-ui, sans-serif;
-  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace; /* taste-skill-ignore: tokens and JSON are literal code */
   --pad: 32px;
   --gap: 20px;
   --radius: 10px;
