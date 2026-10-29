@@ -10,6 +10,15 @@ afterEach(async () => {
 const token = () => screen.getByLabelText('Token to verify');
 const verdict = () => document.querySelector('.verdict');
 
+const STRONG_SECRET = 'k9#Vx2!pLq8$Zr4&Tn7@Wd1^Hs6*Bm3%Fy5'; // 35 bytes: enough for HS256, short for HS384/512
+
+// Signing starts with no key, so tests supply one before expecting a token.
+async function openSignWithKey(secret = STRONG_SECRET) {
+  fireEvent.click(screen.getByRole('tab', { name: 'Sign a token' }));
+  fireEvent.change(screen.getByLabelText('Secret'), { target: { value: secret } });
+  await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+}
+
 async function verified() {
   await waitFor(() => expect(verdict()).toHaveTextContent('Signature verified'));
 }
@@ -88,8 +97,7 @@ describe('Sign mode', () => {
 
   test('generates a token labelled as new and enables copy', async () => {
     render(<App />);
-    openSign();
-    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    await openSignWithKey();
     expect(verdict()).toHaveTextContent(/not a verified one/);
     expect(screen.getByLabelText('Generated token').value.split('.')).toHaveLength(3);
     expect(screen.getByRole('button', { name: 'Copy token' })).toBeEnabled();
@@ -97,8 +105,7 @@ describe('Sign mode', () => {
 
   test('invalid payload JSON is reported at the payload, clears the output and blocks copy', async () => {
     render(<App />);
-    openSign();
-    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    await openSignWithKey();
     fireEvent.change(screen.getByLabelText('Payload'), { target: { value: '{"a":' } });
     await waitFor(() => expect(verdict()).toHaveTextContent('Cannot sign yet'));
     expect(screen.getByLabelText('Generated token').value).toBe('');
@@ -109,8 +116,7 @@ describe('Sign mode', () => {
 
   test('changing the signing secret generates a new token', async () => {
     render(<App />);
-    openSign();
-    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    await openSignWithKey();
     const before = screen.getByLabelText('Generated token').value;
     fireEvent.change(screen.getByLabelText('Secret'), { target: { value: 'rotated-secret' } });
     await waitFor(() => expect(screen.getByLabelText('Generated token').value).not.toBe(before));
@@ -138,6 +144,9 @@ describe('accessibility and controls', () => {
     expect(screen.getByRole('tab', { name: 'Sign a token' })).toHaveFocus();
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Sign a token' }), { key: 'Home' });
     expect(verifyTab).toHaveAttribute('aria-selected', 'true');
+    // Both drafts check themselves in the background; let that finish inside act().
+    await act(async () => {});
+    await waitFor(() => expect(verdict()).toHaveTextContent('Signature verified'));
   });
 
   test('errors are associated with their field', async () => {
@@ -230,8 +239,7 @@ describe('asymmetric keys', () => {
 
   test('signing with ES256 needs a private key and then generates a token', async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Sign a token' }));
-    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    await openSignWithKey();
     fireEvent.change(screen.getAllByLabelText('Algorithm')[0], { target: { value: 'ES256' } });
     await waitFor(() => expect(verdict()).toHaveTextContent('Cannot sign yet'));
     expect(verdict()).toHaveTextContent(/Paste a private key/);
@@ -272,8 +280,7 @@ describe('claims and copy controls', () => {
     await act(async () => userEvent.click(screen.getByRole('button', { name: 'Copy header' })));
     expect(writeText).toHaveBeenLastCalledWith(screen.getByLabelText('Header').value);
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Sign a token' }));
-    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    await openSignWithKey();
     await act(async () => userEvent.click(screen.getByRole('button', { name: 'Copy payload' })));
     expect(writeText).toHaveBeenLastCalledWith(screen.getByLabelText('Payload').value);
   });
@@ -294,8 +301,7 @@ describe('RSA-PSS, EdDSA and legacy key formats', () => {
 
   test('the algorithm list is grouped by family and includes PS and EdDSA', async () => {
     render(<App />);
-    openSign();
-    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    await openSignWithKey();
     const groups = [...select().querySelectorAll('optgroup')].map((g) => g.label);
     expect(groups).toEqual(['HMAC', 'RSA', 'RSA-PSS', 'ECDSA', 'EdDSA']);
     const options = [...select().querySelectorAll('option')].map((o) => o.value);
@@ -305,8 +311,7 @@ describe('RSA-PSS, EdDSA and legacy key formats', () => {
   test('EdDSA signs with an Ed25519 key and the key panel says which key it wants', async () => {
     const pair = generateKeyPairSync('ed25519');
     render(<App />);
-    openSign();
-    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    await openSignWithKey();
     fireEvent.change(select(), { target: { value: 'EdDSA' } });
     await waitFor(() => expect(verdict()).toHaveTextContent('Cannot sign yet'));
     expect(screen.getByText(/PKCS#8, PKCS#1 or SEC1, unencrypted \u00b7 Ed25519/)).toBeInTheDocument();
@@ -320,12 +325,90 @@ describe('RSA-PSS, EdDSA and legacy key formats', () => {
   test('PS256 signs with a PKCS#1 private key', async () => {
     const pair = generateKeyPairSync('rsa', { modulusLength: 2048 });
     render(<App />);
-    openSign();
-    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    await openSignWithKey();
     fireEvent.change(select(), { target: { value: 'PS256' } });
     fireEvent.change(await screen.findByLabelText('Private key (PEM)'), {
       target: { value: pair.privateKey.export({ type: 'pkcs1', format: 'pem' }) },
     });
     await waitFor(() => expect(verdict()).toHaveTextContent(/Signed with PS256/));
+  });
+});
+
+describe('key safety', () => {
+  const secretInput = () => screen.getByLabelText('Secret');
+  const openSign = () => fireEvent.click(screen.getByRole('tab', { name: 'Sign a token' }));
+  const warnings = () => screen.queryAllByText(/Warning:/);
+
+  test('signing starts with no key, not the published example key', async () => {
+    render(<App />);
+    openSign();
+    await waitFor(() => expect(verdict()).toHaveTextContent('Cannot sign yet'));
+    expect(verdict()).toHaveTextContent(/Enter a secret/);
+    expect(secretInput().value).toBe('');
+    expect(screen.getByLabelText('Generated token').value).toBe('');
+    expect(screen.getByRole('button', { name: 'Copy token' })).toBeDisabled();
+  });
+
+  test('Load example in Sign mode brings a fresh random key, different each time', async () => {
+    render(<App />);
+    openSign();
+    fireEvent.click(screen.getByRole('button', { name: 'Load example' }));
+    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    const first = secretInput().value;
+    expect(first).not.toBe('your-256-bit-secret');
+    expect(first.length).toBeGreaterThanOrEqual(64);
+    expect(warnings()).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Load example' }));
+    await waitFor(() => expect(secretInput().value).not.toBe(first));
+    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+  });
+
+  test('a short key still signs but is warned about, next to the key and next to the token', async () => {
+    render(<App />);
+    await openSignWithKey('short');
+    expect(await screen.findByText(/This key is 5 bytes\. HS256 needs at least 32 bytes/)).toBeInTheDocument();
+    expect(screen.getByText(/signed with a weak or published key/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy token' })).toBeEnabled();
+  });
+
+  test('the published example key is called out in Sign mode', async () => {
+    render(<App />);
+    await openSignWithKey('your-256-bit-secret');
+    expect(await screen.findByText(/published example key\. Anyone can sign tokens with it/)).toBeInTheDocument();
+  });
+
+  test('a strong key brings no warnings, and the warning follows the algorithm', async () => {
+    render(<App />);
+    await openSignWithKey();
+    expect(warnings()).toHaveLength(0);
+    // The same key is too short for HS512 (64 bytes).
+    const header = screen.getByLabelText('Header');
+    fireEvent.change(header, { target: { value: '{"alg":"HS512","typ":"JWT"}' } });
+    await waitFor(() => expect(screen.getByText(new RegExp(`This key is ${STRONG_SECRET.length} bytes\\. HS512 needs at least 64 bytes`))).toBeInTheDocument());
+  });
+
+  test('Generate random key fills a strong key and signs', async () => {
+    render(<App />);
+    openSign();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate random key' }));
+    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    expect(secretInput().value.length).toBeGreaterThanOrEqual(64);
+    expect(warnings()).toHaveLength(0);
+  });
+
+  test('Verify mode labels the published example key on the built-in example, which still verifies', async () => {
+    render(<App />);
+    await verified();
+    expect(screen.getByText(/published example key/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Generate random key' })).not.toBeInTheDocument();
+  });
+
+  test('a base64url key is measured in bytes', async () => {
+    render(<App />);
+    openSign();
+    fireEvent.change(screen.getByLabelText('Secret format'), { target: { value: 'base64url' } });
+    fireEvent.change(secretInput(), { target: { value: 'c2hvcnQ' } }); // "short", 5 bytes
+    await waitFor(() => expect(verdict()).toHaveTextContent('New token generated'));
+    expect(screen.getByText(/This key is 5 bytes/)).toBeInTheDocument();
   });
 });

@@ -28,6 +28,10 @@ const MIN_RSA_BITS = 2048;
 const EC_CURVES = ['P-256', 'P-384', 'P-521'];
 const isRsaFamily = (family) => family === 'rsa' || family === 'rsapss';
 
+/** The registry entry for an algorithm name, or null. Never indexes with a value that is not an own string key. */
+export const algorithmSpec = (alg) =>
+  typeof alg === 'string' && Object.prototype.hasOwnProperty.call(ALGORITHMS, alg) ? ALGORITHMS[alg] : null;
+
 export const isSupportedAlgorithm = (alg) =>
   typeof alg === 'string' && Object.prototype.hasOwnProperty.call(ALGORITHMS, alg);
 
@@ -44,6 +48,55 @@ export function getSubtle() {
 }
 
 const encoder = new TextEncoder();
+
+// RFC 7518 section 3.2: an HMAC key must be at least as long as the hash output.
+export const MIN_HMAC_BYTES = { HS256: 32, HS384: 48, HS512: 64 };
+
+// Keys printed in public documentation and examples. Anyone can sign with these.
+export const PUBLISHED_EXAMPLE_SECRETS = ['your-256-bit-secret'];
+
+/** 64 random bytes as base64url text: a key nobody else has, long enough for every HMAC algorithm. */
+export function randomSecret() {
+  const bytes = crypto.getRandomValues(new Uint8Array(64));
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * Advice about the key for an HMAC algorithm. Never blocks: people legitimately check tokens made with short
+ * keys. Returns [{ code, message }].
+ */
+export function keyWarnings(alg, material) {
+  const spec = algorithmSpec(alg);
+  if (!spec || spec.family !== 'hmac' || !material.secret) return [];
+  let bytes;
+  try {
+    bytes = secretBytes(material);
+  } catch {
+    return []; // an invalid encoding is reported as an error, not a warning
+  }
+  const warnings = [];
+  const matches = (known) => {
+    const expected = encoder.encode(known);
+    return bytes.length === expected.length && bytes.every((b, i) => b === expected[i]);
+  };
+  if (PUBLISHED_EXAMPLE_SECRETS.some(matches)) {
+    warnings.push({
+      code: 'known-key',
+      message: 'This is the published example key. Anyone can sign tokens with it. Use it only to try the tool.',
+    });
+  }
+  if (bytes.length < MIN_HMAC_BYTES[alg]) {
+    warnings.push({
+      code: 'weak-key',
+      message: `This key is ${bytes.length} bytes. ${alg} needs at least ${MIN_HMAC_BYTES[alg]} bytes (RFC 7518 section 3.2); shorter keys can be guessed.`,
+    });
+  }
+  return warnings;
+}
 
 /** Plain text becomes UTF-8 bytes. Base64URL is decoded straight to bytes, so binary secrets work. */
 export function secretBytes({ secret, secretEncoding }) {

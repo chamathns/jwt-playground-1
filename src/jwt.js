@@ -285,7 +285,7 @@ export function describeClaims(payload, nowMs = Date.now()) {
   });
 }
 
-/** Synthetic drafts for the signing editor. */
+/** Synthetic header and payload for the signing editor. It has no key: the caller supplies one. */
 export function sampleDocument(nowMs = Date.now()) {
   const issued = Math.floor(nowMs / 1000);
   return {
@@ -297,6 +297,5 @@ export function sampleDocument(nowMs = Date.now()) {
       iat: issued,
       exp: issued + 3600,
     }),
-    secret: 'your-256-bit-secret',
   };
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useReducer } from 'react';
 import { decodeToken, describeClaims, parseJsonObject, prettyJson, signToken, verifyToken } from './jwt';
 import { toError } from './jwtErrors';
+import { randomSecret } from './keys';
 import { createInitialState, reducer } from './jwtState';
 import useNow from './useNow';
 
@@ -75,7 +76,7 @@ export default function useJwt(engine = { verify: verifyToken, sign: signToken }
       signEdit: (patch) => dispatch({ type: 'sign/edit', patch }),
       signMaterial: (patch) => dispatch({ type: 'sign/material', patch }),
       signClear: () => dispatch({ type: 'sign/clear' }),
-      signExample: () => dispatch({ type: 'sign/example', now: Date.now() }),
+      signExample: () => dispatch({ type: 'sign/example', now: Date.now(), secret: randomSecret() }),
       signAlgorithm: (alg, headerText) => {
         const header = objectOrNull(headerText, 'header');
         if (header) dispatch({ type: 'sign/edit', patch: { headerText: prettyJson({ ...header, alg }) } });

@@ -21,7 +21,7 @@ export function createInitialState(now = Date.now()) {
     sign: {
       headerText: draft.headerText,
       payloadText: draft.payloadText,
-      material: emptyMaterial(draft.secret),
+      material: emptyMaterial(), // no key until the user supplies one
       revision: 0,
       result: { status: 'pending' },
     },
@@ -72,7 +72,7 @@ export function reducer(state, action) {
       return editSign(state, {
         headerText: draft.headerText,
         payloadText: draft.payloadText,
-        material: emptyMaterial(draft.secret),
+        material: emptyMaterial(action.secret), // a fresh random key, never the published one
       });
     }
     case 'sign/result':

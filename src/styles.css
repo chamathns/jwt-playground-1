@@ -349,3 +349,7 @@ input.secret { height: 40px; }
   .actions button { padding: 0 9px; font-size: 12px; }
   .field-head { flex-wrap: wrap; }
 }
+
+/* key advice: text, not colour alone */
+.warning { margin: 8px 0 0; color: var(--warning); font-size: 12px; line-height: 1.5; }
+button.small { height: 28px; margin-top: 8px; padding: 0 10px; font-size: 12px; }

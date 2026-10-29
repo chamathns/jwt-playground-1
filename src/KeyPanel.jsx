@@ -1,8 +1,10 @@
 import { ALGORITHMS } from './jwt';
+import { keyWarnings, randomSecret } from './keys';
 
 // Key input that matches the token's algorithm. Verification and signing share the layout, not the state.
 export default function KeyPanel({ title, algorithm, material, onChange, error, verifying }) {
   const family = ALGORITHMS[algorithm]?.family;
+  const warnings = keyWarnings(algorithm, material);
 
   return (
     <section className="panel" data-tone="signature">
@@ -29,12 +31,26 @@ export default function KeyPanel({ title, algorithm, material, onChange, error, 
             type="text"
             value={material.secret}
             onChange={(event) => onChange({ secret: event.target.value })}
-            placeholder={material.secretEncoding === 'base64url' ? 'base64url-encoded secret' : 'your-256-bit-secret'}
+            placeholder={material.secretEncoding === 'base64url' ? 'base64url-encoded secret' : 'a long random secret'}
             spellCheck={false}
             autoComplete="off"
             aria-invalid={Boolean(error)}
             aria-describedby={error ? 'key-error' : undefined}
           />
+          {!verifying && (
+            <button
+              type="button"
+              className="small"
+              onClick={() => onChange({ secret: randomSecret(), secretEncoding: 'text' })}
+            >
+              Generate random key
+            </button>
+          )}
+          {warnings.map((warning) => (
+            <p key={warning.code} className="warning">
+              <strong>Warning:</strong> {warning.message}
+            </p>
+          ))}
         </div>
       )}
       {family && family !== 'hmac' && (

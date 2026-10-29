@@ -7,7 +7,7 @@ import Tabs from './Tabs';
 import TokenField from './TokenField';
 import useJwt from './useJwt';
 import { ALGORITHMS } from './jwt';
-import { FAMILY_LABELS } from './keys';
+import { FAMILY_LABELS, keyWarnings } from './keys';
 import { describeSign, describeVerify } from './status';
 
 const TABS = [
@@ -170,6 +170,11 @@ function SignMode({ jwt }) {
             readOnly
             placeholder="The signed token appears here"
           />
+          {ready && keyWarnings(sign.alg, sign.material).length > 0 && (
+            <p className="warning">
+              <strong>Warning:</strong> signed with a weak or published key. Anyone could forge a token like this.
+            </p>
+          )}
           <ul className="legend" aria-label="Token parts">
             <li data-tone="header">Header</li>
             <li data-tone="payload">Payload</li>
@@ -202,7 +207,11 @@ export default function App() {
   const example = () => {
     if (mode === 'verify') actions.verifyExample();
     else actions.signExample();
-    setNotice('Example loaded. It uses synthetic data.');
+    setNotice(
+      mode === 'verify'
+        ? 'Example loaded. It uses synthetic data and the published example key.'
+        : 'Example loaded with synthetic data and a new random key.',
+    );
   };
   const canClear = mode === 'verify' ? Boolean(verify.input) : Boolean(sign.headerText || sign.payloadText);
 
