@@ -1,70 +1,44 @@
-# Getting Started with Create React App
+# JWT Playground
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Decode, verify and sign JSON Web Tokens in the browser. Nothing is sent to a server: the production build's
+Content-Security-Policy denies all network connections, and nothing is written to storage.
 
-## Available Scripts
+```
+npm install
+npm start      # dev server
+npm test       # unit, interoperability and UI tests
+npm run build  # production build in build/
+```
 
-In the project directory, you can run:
+## Two modes
 
-### `npm start`
+- **Verify** decodes the token you paste (read-only) and checks its signature against the key you supply.
+  Changing the key or its format only re-checks that exact token; it never signs, rewrites or normalises it.
+  Surrounding whitespace is ignored for checking and disclosed; your input is left as typed.
+- **Sign** builds a new token from an editable header and payload and a signing key. Any change re-signs.
+  The output is labelled as newly generated, never as verified.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Each mode keeps its own draft. "Signature verified" means only that the signature matches the key. It does not
+validate issuer, audience, authorization or time claims; time flags (expired, not yet valid) use the device clock
+and are shown separately.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Algorithms and keys
 
-### `npm test`
+HS256/384/512 (secret as UTF-8 text or Base64URL bytes), RS256/384/512 and ES256/384/512 (PEM keys: public key as
+SubjectPublicKeyInfo to verify, unencrypted PKCS#8 private key to sign; RSA keys of 2048 bits or more; ES256, ES384
+and ES512 need P-256, P-384 and P-521). `none` and every algorithm outside this list are reported as unsupported,
+never verified. Tokens with `crit` extensions or `b64: false` are refused. There is no key lookup, JWKS fetch or
+`kid` handling.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Layout
 
-### `npm run build`
+- `src/jwt.js`: pure logic with typed results (`decodeToken`, `verifyToken`, `signToken`, `describeClaims`).
+- `src/keys.js`: algorithm registry, secret bytes and PEM import. HMAC reads only the secret and RSA/ECDSA read only
+  the PEM, so a public key can never be reused as an HMAC secret.
+- `src/base64url.js`, `src/jwtErrors.js`: encoding and the error-code contract.
+- `src/jwtState.js`, `src/useJwt.js`: two drafts with per-draft revisions bumped on every edit, so a late async
+  result can never overwrite newer input.
+- `src/status.js`: result objects to user-facing words. `src/App.jsx` and friends: plain components and
+  `src/styles.css` (tokens, automatic dark mode). No UI library, no crypto dependency.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Cryptography is Web Crypto only; it needs a secure context (HTTPS or localhost).
