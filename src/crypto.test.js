@@ -1,4 +1,4 @@
-/** @jest-environment node */
+// @vitest-environment node
 // Interoperability: Node's OpenSSL is the independent implementation. It signs tokens this app verifies,
 // and verifies tokens this app signs, for every algorithm, plus the key and format rejections.
 import {

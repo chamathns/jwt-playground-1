@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- First in <head>, before anything that could fetch. Strict in production (the app talks to no server),
+         looser in dev: see .env.production and .env.development. The hosted site also sends this policy as an
+         HTTP header (vercel.json), which additionally covers frame-ancestors. -->
+    <meta http-equiv="Content-Security-Policy" content="%VITE_CSP%" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="alternate icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Decode, edit and verify JSON Web Tokens in your browser. Nothing is sent to a server."
+    />
+    <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>JWT Playground</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

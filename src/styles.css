@@ -353,3 +353,78 @@ input.secret { height: 40px; }
 /* key advice: text, not colour alone */
 .warning { margin: 8px 0 0; color: var(--warning); font-size: 12px; line-height: 1.5; }
 button.small { height: 28px; margin-top: 8px; padding: 0 10px; font-size: 12px; }
+
+/* Workspace refinement: the token is the focal surface; its colours identify real JWT parts. */
+:root {
+  --ground: #e8efed;
+  --surface: #fff;
+  --raised: #f3f7f6;
+  --border: #dce6e3;
+  --control: #c6d4d0;
+  --text: #162723;
+  --muted: #526a63;
+  --primary: #173c33;
+  --focus: #147963;
+  --header: #b13959;
+  --payload: #916000;
+  --signature: #176f85;
+}
+.topbar { height: 68px; max-width: 1500px; }
+.product { font-size: 16px; }
+.privacy { color: #3c6255; font-weight: 500; }
+.canvas { max-width: 1484px; min-height: calc(100vh - 76px); padding: 38px 42px 56px; }
+.title-row { margin-bottom: 30px; }
+h1 { max-width: 710px; font-size: clamp(26px, 2.4vw, 34px); font-weight: 600; }
+.verdict { max-width: 740px; margin-top: 14px; font-size: 13px; line-height: 1.5; }
+.verdict strong { font-weight: 600; }
+.actions { flex-wrap: wrap; justify-content: flex-end; }
+.actions button { height: 40px; }
+.tabs { gap: 32px; margin-bottom: 26px; }
+.tabs button { font-size: 14px; }
+.tabs button[aria-selected="true"] { border-bottom-color: #147963; }
+.columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.column { gap: 24px; }
+.panel { border-radius: 12px; padding: 24px; }
+.panel h2 { font-size: 17px; }
+.panel-grow { min-height: 340px; }
+.token, .token[data-readonly] { background: #172723; border-color: #172723; border-radius: 8px; }
+.token-mirror, .token-input { min-height: 180px; padding: 20px; line-height: 1.8; font-size: 13px; }
+.token-input { caret-color: #fff; }
+.token-input::placeholder { color: #b6cbc3; }
+.token .seg-header { color: #ffa3b7; }
+.token .seg-payload { color: #f1ca78; }
+.token .seg-signature { color: #8fd4e1; }
+.token .dot { color: #d0ddd8; }
+.legend { margin-top: 18px; font-weight: 500; }
+.field-head label { font-size: 14px; }
+textarea.json { background: #f6f9f8; border-color: #dce6e3; color: var(--text); }
+textarea.json[readonly] { color: var(--text); }
+textarea.json:focus, input.secret:focus { border-color: var(--focus); }
+input.secret { color: var(--text); }
+.claim dt { color: var(--text); font-weight: 500; }
+.claim-help { font-weight: 400; }
+button:hover:not(:disabled) { border-color: #9eb5ac; }
+button.primary:hover:not(:disabled) { border-color: var(--primary); }
+@media (max-width: 860px) {
+  .topbar { height: 58px; }
+  .canvas { min-height: calc(100vh - 58px); padding: 28px 20px 40px; }
+  .columns { grid-template-columns: minmax(0, 1fr); }
+  .actions { justify-content: flex-start; }
+  .panel-grow { min-height: 280px; }
+}
+@media (max-width: 420px) {
+  .canvas { padding-inline: 16px; }
+  .topbar { padding-inline: 16px; }
+  .panel { padding: 18px; }
+  .actions button { font-size: 12px; }
+  .token-mirror, .token-input { padding: 16px; font-size: 12px; }
+}
+@media (max-width: 860px) {
+  /* Keep the token and its decoded counterpart adjacent in the mobile reading order. */
+  .column { display: contents; }
+  .column:first-child > :first-child { order: 1; }
+  .column:last-child > :first-child { order: 2; }
+  .column:first-child > :nth-child(2) { order: 3; }
+  .column:last-child > :nth-child(2) { order: 4; }
+  .note, .warning, .error, .hint, .claim-help, .legend { font-size: 13px; }
+}

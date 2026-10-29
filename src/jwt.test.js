@@ -1,4 +1,4 @@
-/** @jest-environment node */
+// @vitest-environment node
 import { createHmac } from 'crypto';
 import {
   base64UrlDecode,

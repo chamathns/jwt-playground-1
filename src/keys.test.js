@@ -1,4 +1,4 @@
-/** @jest-environment node */
+// @vitest-environment node
 import { ALGORITHMS, MIN_HMAC_BYTES, algorithmSpec, keyWarnings, randomSecret } from './keys';
 
 const text = (secret) => ({ secret, secretEncoding: 'text', pem: '' });

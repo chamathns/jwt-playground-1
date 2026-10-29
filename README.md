@@ -5,7 +5,7 @@ Content-Security-Policy denies all network connections, and nothing is written t
 
 ```
 npm install
-npm start      # dev server
+npm start      # dev server (Vite)
 npm test       # unit, interoperability and UI tests
 npm run build  # production build in build/
 ```
