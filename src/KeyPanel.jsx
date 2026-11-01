@@ -1,3 +1,5 @@
+import CopyButton from './CopyButton';
+import { reveal } from './motion';
 import { algorithmSpec, displayAlgorithm, keyWarnings, randomSecret } from './keys';
 
 // Key input that matches the token's algorithm. Verification and signing share the layout, not the state.
@@ -7,7 +9,7 @@ export default function KeyPanel({ title, algorithm, material, onChange, error, 
   const warnings = keyWarnings(algorithm, material);
 
   return (
-    <section className="panel" data-tone="signature" data-ui>
+    <section className="panel" data-tone="signature" data-ui data-reveal ref={reveal}>
       <h2>{title}</h2>
       {family === 'hmac' && (
         <div className="field">
@@ -24,6 +26,7 @@ export default function KeyPanel({ title, algorithm, material, onChange, error, 
               <option value="text">Text (UTF-8)</option>
               <option value="base64url">Base64URL bytes</option>
             </select>
+            <CopyButton text={material.secret} ariaLabel="Copy secret" disabled={!material.secret} icon />
           </div>
           <input
             id="secret"
@@ -60,6 +63,14 @@ export default function KeyPanel({ title, algorithm, material, onChange, error, 
             <span className="hint">
               {verifying ? 'SPKI or PKCS#1' : 'PKCS#8, PKCS#1 or SEC1, unencrypted'}
               {(family === 'ec' || family === 'eddsa') && ` \u00b7 ${spec.curve}`}
+            </span>
+            <span className="push">
+              <CopyButton
+                text={material.pem}
+                ariaLabel={verifying ? 'Copy public key' : 'Copy private key'}
+                disabled={!material.pem.trim()}
+                icon
+              />
             </span>
           </div>
           <textarea

@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ClaimsPanel from './ClaimsPanel';
-import CopyButton from './CopyButton';
+import CopyButton, { CopyGlyph, CopyStatus, useCopy } from './CopyButton';
 import JsonField from './JsonField';
 import KeyPanel from './KeyPanel';
+import SegmentChips from './SegmentChips';
 import Tabs from './Tabs';
 import TokenField from './TokenField';
 import useJwt from './useJwt';
 import { ALGORITHMS } from './jwt';
 import { FAMILY_LABELS, algorithmSpec, displayAlgorithm, keyWarnings } from './keys';
+import { reveal } from './motion';
 import { describeSign, describeVerify } from './status';
 
 const TABS = [
@@ -18,9 +20,37 @@ const TABS = [
 const keyError = (result) => (result.error?.part === 'key' ? result.error.message : null);
 const partError = (result, part) => (result.error?.part === part ? result.error.message : null);
 
+const PART_NAMES = ['Header', 'Payload', 'Signature'];
+
+// One oversized segment of the sample token; clicking copies the whole segment.
+function AnatomyPart({ name, index, segment }) {
+  const { outcome, copy } = useCopy(segment);
+  return (
+    <>
+      <button
+        type="button"
+        className={`anatomy-part anatomy-${index}`}
+        data-ui
+        data-state={outcome || undefined}
+        disabled={!segment}
+        onClick={copy}
+        aria-label={`Copy the token’s ${name.toLowerCase()} segment`}
+      >
+        <span className="anatomy-name">{name}</span>
+        <code>{segment ? `${segment.slice(0, 24)}${segment.length > 24 ? '…' : ''}` : '—'}</code>
+        <span className="anatomy-copy" aria-hidden="true">
+          <span className="anatomy-copy-text">{outcome === 'copied' ? 'Copied' : 'Copy'}</span>
+          <CopyGlyph done={outcome === 'copied'} />
+        </span>
+      </button>
+      <CopyStatus outcome={outcome} name={`${name} segment`} />
+    </>
+  );
+}
+
 function Verdict({ view }) {
   return (
-    <div className="verdict" data-tone={view.tone}>
+    <div className="verdict" data-tone={view.tone} key={view.title}>
       <strong>{view.title}</strong>
       {view.title === 'Signature verified' && <span>The signature matches this key. Claims aren’t validated.</span>}
       {view.message && (view.tone === 'positive' ? <details className="verdict-details"><summary>What this means</summary><span>{view.message}</span></details> : <span>{view.message}</span>)}
@@ -37,7 +67,7 @@ function VerifyMode({ jwt, notify }) {
   return (
     <div className="columns">
       <div className="column">
-        <section className="panel panel-grow" data-ui>
+        <section className="panel panel-grow" data-ui data-reveal ref={reveal}>
           <h2>Encoded token</h2>
           <TokenField
             id="verify-token"
@@ -47,22 +77,19 @@ function VerifyMode({ jwt, notify }) {
             error={tokenError}
             errorId="verify-token-error"
             placeholder="Paste a token here"
+            copyLabel="Copy encoded token"
           />
           {tokenError && <p className="error" id="verify-token-error">{tokenError}</p>}
           {decoded.trimmed && (
             <p className="note">Spaces around the token were ignored for verification. Your input hasn’t changed.</p>
           )}
-          <ul className="legend" aria-label="Token parts">
-            <li data-tone="header">Header</li>
-            <li data-tone="payload">Payload</li>
-            <li data-tone="signature">Signature</li>
-          </ul>
+          <SegmentChips token={verify.input} />
         </section>
         <ClaimsPanel claims={verify.claims} />
       </div>
 
       <div className="column">
-        <section className="panel" data-ui>
+        <section className="panel" data-ui data-reveal ref={reveal}>
           <h2>Decoded <span className="hint">read-only</span></h2>
           <JsonField
             label="Header"
@@ -107,7 +134,7 @@ function SignMode({ jwt }) {
   return (
     <div className="columns">
       <div className="column">
-        <section className="panel" data-ui>
+        <section className="panel" data-ui data-reveal ref={reveal}>
           <h2>Token contents</h2>
           <JsonField
             label="Header"
@@ -162,7 +189,7 @@ function SignMode({ jwt }) {
       </div>
 
       <div className="column">
-        <section className="panel panel-grow" data-ui>
+        <section className="panel panel-grow" data-ui data-reveal ref={reveal}>
           <h2>Generated token <span className="hint">new, not verified</span></h2>
           <TokenField
             id="sign-token"
@@ -170,17 +197,14 @@ function SignMode({ jwt }) {
             value={ready ? sign.result.token : ''}
             readOnly
             placeholder="Your signed token will appear here"
+            copyLabel="Copy generated token"
           />
           {ready && keyWarnings(sign.alg, sign.material).length > 0 && (
             <p className="warning">
               <strong>Warning:</strong> signed with a weak or published key. Anyone could forge a token like this.
             </p>
           )}
-          <ul className="legend" aria-label="Token parts">
-            <li data-tone="header">Header</li>
-            <li data-tone="payload">Payload</li>
-            <li data-tone="signature">Signature</li>
-          </ul>
+          <SegmentChips token={ready ? sign.result.token : ''} />
         </section>
         <ClaimsPanel claims={sign.claims} />
       </div>
@@ -191,6 +215,27 @@ function SignMode({ jwt }) {
 export default function App() {
   const jwt = useJwt();
   const { mode, verify, sign, actions } = jwt;
+  const heroRef = useRef(null);
+  // The hero's three segments drift against the pointer. Fine pointers only; reduced motion keeps them still.
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero || typeof window.matchMedia !== 'function') return undefined;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)').matches) return undefined;
+    let frame;
+    const move = (event) => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const box = hero.getBoundingClientRect();
+        hero.style.setProperty('--px', ((event.clientX - box.left) / box.width - 0.5).toFixed(3));
+        hero.style.setProperty('--py', ((event.clientY - box.top) / box.height - 0.5).toFixed(3));
+      });
+    };
+    hero.addEventListener('pointermove', move);
+    return () => {
+      hero.removeEventListener('pointermove', move);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
   const view = mode === 'verify' ? describeVerify(verify.result) : describeSign(sign.result);
 
   // Spoken status: settled results only, so typing does not announce every keystroke.
@@ -231,6 +276,7 @@ export default function App() {
 
   return (
     <div className="shell">
+      <div className="progress" aria-hidden="true"><i></i><i></i><i></i></div>
       <header className="topbar">
         <span className="mark" aria-hidden="true"><i></i><i></i><i></i></span>
         <span className="product">JWT Playground</span>
@@ -238,21 +284,16 @@ export default function App() {
         <span className="privacy"><span className="privacy-dot" aria-hidden="true"></span>Runs in your browser</span>
       </header>
 
-      <section className="landing-hero" aria-labelledby="landing-title">
+      <section className="landing-hero" aria-labelledby="landing-title" ref={heroRef}>
         <div className="hero-copy">
-          <h1 id="landing-title">Decode, verify<br />and sign JWTs.</h1>
+          <h1 id="landing-title"><span className="line"><span>Decode, verify</span></span> <span className="line"><span>and sign JWTs.</span></span></h1>
           <p>Inspect and create JSON Web Tokens in your browser.</p>
           <a className="hero-action" href="#workspace">Try the playground <span aria-hidden="true">↘</span></a>
         </div>
         <div className="hero-anatomy" aria-label="A JSON Web Token has a header, payload, and signature">
-          {['Header', 'Payload', 'Signature'].map((part, index) => {
-            const segment = verify.input.split('.')[index] || '';
-            return <div className={`anatomy-part anatomy-${index}`} data-ui key={part}>
-              <span className="anatomy-name">{part}</span>
-              <code>{segment ? `${segment.slice(0, 24)}${segment.length > 24 ? '…' : ''}` : '—'}</code>
-              <span className="anatomy-arrow" aria-hidden="true">↗</span>
-            </div>;
-          })}
+          {PART_NAMES.map((part, index) => (
+            <AnatomyPart key={part} name={part} index={index} segment={verify.input.trim().split('.')[index] || ''} />
+          ))}
         </div>
       </section>
 
@@ -288,18 +329,21 @@ export default function App() {
 
         <Tabs tabs={TABS} value={mode} onChange={actions.setMode} label="Mode" />
 
-        <div role="tabpanel" id={`panel-${mode}`} aria-labelledby={`tab-${mode}`}>
+        <div className="tabpanel" key={mode} role="tabpanel" id={`panel-${mode}`} aria-labelledby={`tab-${mode}`}>
           {mode === 'verify' ? <VerifyMode jwt={jwt} /> : <SignMode jwt={jwt} />}
         </div>
 
         <div className="sr-only" role="status">{spoken}</div>
         <div className="sr-only" role="status">{notice}</div>
       </main>
-      <section className="about-section" id="about">
+      <section className="about-section" id="about" data-stagger ref={reveal}>
         <div><h2>Your tokens stay<br />in your browser.</h2></div>
         <div className="about-copy"><p>Your tokens and keys are processed in your browser. They aren’t sent to a server or saved.</p><p>Decode a token to inspect its contents, verify its signature with a key, or sign a new token.</p><a href="#workspace">Go to the playground ↑</a></div>
       </section>
-      <footer className="landing-footer"><span>JWT Playground</span><span>Decode · Verify · Sign</span></footer>
+      <footer className="landing-footer" data-stagger ref={reveal}>
+        <span>JWT Playground</span>
+        <span>Decode · Verify · Sign</span>
+      </footer>
     </div>
   );
 }

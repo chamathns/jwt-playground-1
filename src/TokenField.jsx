@@ -1,6 +1,8 @@
 // The token is shown as three coloured segments. A transparent textarea sits over a mirror that
 // holds the same text, so editing stays native while the header, payload and signature read apart.
-export default function TokenField({ id, label, value, onChange, error, errorId, readOnly = false, placeholder }) {
+import CopyButton from './CopyButton';
+
+export default function TokenField({ id, label, value, onChange, error, errorId, readOnly = false, placeholder, copyLabel }) {
   const [header = '', payload, ...signature] = value.split('.');
   const hasPayload = payload !== undefined;
   const hasSignature = signature.length > 0;
@@ -41,6 +43,11 @@ export default function TokenField({ id, label, value, onChange, error, errorId,
         autoCapitalize="off"
         autoComplete="off"
       />
+      {copyLabel && (
+        <span className="token-copy">
+          <CopyButton text={value} ariaLabel={copyLabel} disabled={!value.trim()} iconOnly />
+        </span>
+      )}
     </div>
     {showSegments && (
       <div className="token-segments" aria-hidden="true">
