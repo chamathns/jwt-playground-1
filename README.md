@@ -1,7 +1,34 @@
+<p align="center">
+  <img src="docs/banner.svg" alt="JWT Playground: decode, verify and sign JWTs" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://jwt-playground-beta.vercel.app"><b>Open the playground</b></a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#algorithms-and-keys">Algorithms</a> ·
+  <a href="#security-model">Security model</a>
+</p>
+
+<p align="center">
+  <img alt="Node 22" src="https://img.shields.io/badge/node-22.x-1b2c22?style=flat-square">
+  <img alt="React 18" src="https://img.shields.io/badge/react-18-176f85?style=flat-square">
+  <img alt="Web Crypto only" src="https://img.shields.io/badge/crypto-Web%20Crypto%20only-916000?style=flat-square">
+  <img alt="No network" src="https://img.shields.io/badge/network-none-b13959?style=flat-square">
+</p>
+
 # JWT Playground
 
 Decode, verify and sign JSON Web Tokens in the browser. Nothing is sent to a server: the production build's
 Content-Security-Policy denies all network connections, and nothing is written to storage.
+
+| | |
+| --- | --- |
+| **Decode** | Header, payload and registered claims, with the token's three parts colour-coded. |
+| **Verify** | Check a signature against a secret or public key. The token is never rewritten. |
+| **Sign** | Build a new token from editable JSON and a key. Output is labelled as newly generated. |
+| **Copy** | One click copies the token, any single segment, a claim, or a key. |
+
+## Quick start
 
 ```
 npm install
@@ -9,6 +36,49 @@ npm start      # dev server (Vite)
 npm test       # unit, interoperability and UI tests
 npm run build  # production build in build/
 ```
+
+Needs Node 22. Cryptography is Web Crypto only, so it runs in a secure context (HTTPS or localhost).
+
+## Architecture
+
+<p align="center">
+  <img src="docs/architecture.svg" alt="Architecture: a static host delivers the page once; inside the browser React components call a state hook and reducer, which call pure JWT logic, which calls the Web Crypto API; servers and storage are blocked" width="100%">
+</p>
+
+Data moves one way down and one way back. Components never touch crypto; the logic layer never touches React.
+The only network use is the page load itself.
+
+### What happens when you edit a token
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor You
+    participant UI as Components
+    participant Hook as useJwt + jwtState
+    participant Logic as jwt.js + keys.js
+    participant Crypto as Web Crypto
+
+    You->>UI: paste or edit a token
+    UI->>Hook: dispatch verify/input
+    Note over Hook: revision +1 on every edit
+    Hook->>Logic: decodeToken (sync)
+    Logic-->>UI: header, payload, claims
+    Hook->>Logic: verifyToken (async)
+    Logic->>Logic: import key, check type and curve
+    Logic->>Crypto: subtle.verify
+    Crypto-->>Logic: true or false
+    Logic-->>Hook: typed result
+    alt revision still current
+        Hook-->>UI: verified, invalid or error
+    else a newer edit arrived
+        Hook--xUI: result discarded
+    end
+    UI-->>You: verdict and decoded view
+```
+
+A late async result can never overwrite newer input: each draft carries a revision, the effect discards results
+from older revisions, and the reducer rejects stale ones a second time.
 
 ## Two modes
 
@@ -44,6 +114,16 @@ and are shown separately.
 - `none` and every algorithm outside the table are reported as unsupported, never verified. Tokens with `crit`
   extensions or `b64: false` are refused. There is no key lookup, JWKS fetch or `kid` handling.
 
+## Security model
+
+| Guarantee | How it is enforced |
+| --- | --- |
+| No network requests | `connect-src 'none'` in the CSP, sent as a header (`vercel.json`) and as a `<meta>` tag; `security.test.js` keeps them in sync. |
+| No third-party code or fonts | `script-src 'self'`, `font-src 'self'`; fonts ship in the bundle. |
+| Nothing persisted | The app never writes to storage. Closing the tab clears everything. |
+| No hand-rolled crypto | Every signature goes through `crypto.subtle`; `src/der.js` only re-wraps key encodings. |
+| Keys never cross types | HMAC reads only the secret, RSA/ECDSA read only the PEM, so a public key can never become an HMAC secret. |
+
 ## Layout
 
 - `src/jwt.js`: pure logic with typed results (`decodeToken`, `verifyToken`, `signToken`, `describeClaims`).
@@ -52,7 +132,13 @@ and are shown separately.
 - `src/base64url.js`, `src/der.js`, `src/jwtErrors.js`: encoding, key re-wrapping and the error-code contract.
 - `src/jwtState.js`, `src/useJwt.js`: two drafts with per-draft revisions bumped on every edit, so a late async
   result can never overwrite newer input.
-- `src/status.js`: result objects to user-facing words. `src/App.jsx` and friends: plain components and
-  `src/styles.css` (tokens, automatic dark mode). No UI library, no crypto dependency.
+- `src/status.js`: result objects to user-facing words. `src/App.jsx` and friends: plain components.
+- `src/styles.css` (tokens and layout), `src/interactions.css` (selection, copy controls, motion) and
+  `src/motion.js` (scroll reveals, off under `prefers-reduced-motion`). No UI library, no crypto dependency.
 
-Cryptography is Web Crypto only; it needs a secure context (HTTPS or localhost).
+## More
+
+- [Product requirements](docs/jwt-playground-functionality-prd.md) and
+  [technical requirements](docs/jwt-playground-functionality-trd.md).
+- The diagrams in `docs/` are hand-written SVG, so they stay sharp at any size and carry the site's palette.
+

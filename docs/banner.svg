@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-labelledby="t">
+<title id="t">JWT Playground: decode, verify and sign JWTs. A token is a header, a payload and a signature.</title>
+<style>
+ text{font-family:'IBM Plex Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif} .m{font-family:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace}
+ .rise{opacity:0;animation:rise .8s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:var(--d,0s)}
+ .float{animation:float 6s ease-in-out infinite;animation-delay:var(--f,0s)}
+ .sheen{animation:sheen 7s ease-in-out infinite;animation-delay:var(--s,0s)}
+ @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+ @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+ @keyframes sheen{0%,60%{transform:translateX(-200px) skewX(-18deg)}100%{transform:translateX(620px) skewX(-18deg)}}
+ @media (prefers-reduced-motion:reduce){.rise,.float,.sheen{animation:none;opacity:1}}
+</style>
+<defs>
+ <clipPath id="c0"><rect x="0" y="0" width="470" height="92"/></clipPath>
+</defs>
+<rect width="1200" height="360" rx="22" fill="#dbe9da"/>
+<g class="rise" style="--d:0s"><text x="56" y="150" font-size="76" font-weight="600" fill="#1b2c22" letter-spacing="-4.2">Decode, verify</text></g>
+<g class="rise" style="--d:.1s"><text x="56" y="224" font-size="76" font-weight="600" fill="#1b2c22" letter-spacing="-4.2">and sign JWTs.</text></g>
+<g class="rise" style="--d:.2s"><text x="58" y="274" font-size="20" fill="#1b2c22">Inspect and create JSON Web Tokens in your browser.</text>
+<text x="58" y="304" font-size="16" fill="#365647">Nothing is sent to a server. Nothing is saved.</text></g>
+<g class="rise" style="--d:0.15s"><g class="float" style="--f:0s" transform="translate(0 0)">
+<g transform="translate(596 52) rotate(-3 235 45)">
+<rect width="470" height="92" fill="#9e3f59"/>
+<g clip-path="url(#c0)"><rect class="sheen" style="--s:1.0s" x="0" y="0" width="120" height="92" fill="#fff" opacity=".13"/></g>
+<text x="26" y="48" font-size="38" font-weight="600" fill="#fff" letter-spacing="-1.6">Header</text>
+<text class="m" x="26" y="74" font-size="13" fill="#fff" opacity=".85">eyJhbGciOiJIUzI1NiIsInR5…</text>
+</g></g></g>
+<g class="rise" style="--d:0.27s"><g class="float" style="--f:0.6s" transform="translate(0 0)">
+<g transform="translate(640 142) rotate(-3 235 45)">
+<rect width="470" height="92" fill="#746022"/>
+<g clip-path="url(#c0)"><rect class="sheen" style="--s:2.3s" x="0" y="0" width="120" height="92" fill="#fff" opacity=".13"/></g>
+<text x="26" y="48" font-size="38" font-weight="600" fill="#fff" letter-spacing="-1.6">Payload</text>
+<text class="m" x="26" y="74" font-size="13" fill="#fff" opacity=".85">eyJzdWIiOiJ1c3JfMjA0MSIs…</text>
+</g></g></g>
+<g class="rise" style="--d:0.39s"><g class="float" style="--f:1.2s" transform="translate(0 0)">
+<g transform="translate(684 232) rotate(-3 235 45)">
+<rect width="470" height="92" fill="#296879"/>
+<g clip-path="url(#c0)"><rect class="sheen" style="--s:3.6s" x="0" y="0" width="120" height="92" fill="#fff" opacity=".13"/></g>
+<text x="26" y="48" font-size="38" font-weight="600" fill="#fff" letter-spacing="-1.6">Signature</text>
+<text class="m" x="26" y="74" font-size="13" fill="#fff" opacity=".85">jYFYP2bKKHtjBYMLC2jlfPpU…</text>
+</g></g></g>
+</svg>
